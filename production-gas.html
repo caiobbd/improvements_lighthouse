@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIGHTHOUSE — MVBAC Production Gas</title>
+  <meta name="description" content="MVBAC Production Gas equipment overview">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- HEADER -->
+  <header class="header-bar">
+    <a href="index.html" class="header-logo">
+      <span class="header-logo-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="8" width="8" height="14" rx="1" fill="#e74c3c"/><rect x="12" y="4" width="8" height="18" rx="1" fill="#e74c3c" opacity="0.7"/><rect x="6" y="2" width="5" height="5" rx="2.5" fill="#e74c3c" opacity="0.5"/></svg></span>
+      <span class="header-logo-text">LIGHTHOUSE</span>
+      <span class="header-logo-powered">powered by shape<span class="shape-dot"></span></span>
+    </a>
+    <div class="header-breadcrumb">
+      <a href="#">MODEC do Brasil</a><span class="sep">›</span><a href="index.html">MVBAC</a><span class="sep">›</span><span class="current">Production Gas</span>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="active">Overview</a><a href="#">Alarm</a><a href="#">Cases</a><a href="#">Asset Health</a><a href="#">Performance</a><a href="#">Flare</a><a href="#">Charts</a>
+    </nav>
+    <div class="header-user">
+      <a href="#">⊘ Help</a><span class="user-name">Caio Dias</span><span>▾</span>
+      <div class="app-grid"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-search"><input type="text" placeholder="Search"><span class="search-icon">🔍</span><span class="close-btn">×</span></div>
+      <div class="sidebar-tree">
+        <a href="index.html" class="tree-item ship-root">MVBAC<span class="chevron open">▾</span></a>
+        <div class="tree-children">
+          <a href="production-gas.html" class="tree-item sub-item active">MVBAC - PRODUCTION - GAS<span class="chevron open">▾</span></a>
+          <div class="tree-children">
+            <a href="#" class="tree-item sub-item" style="padding-left:28px;font-size:10px;">GAS COMPRESSION (HP - RE-INJECTION)</a>
+            <a href="#" class="tree-item sub-item" style="padding-left:28px;font-size:10px;">GAS COMPRESSION (MP)</a>
+            <a href="#" class="tree-item sub-item" style="padding-left:28px;font-size:10px;">VRU/LP GAS COMPRESSION</a>
+          </div>
+          <a href="#" class="tree-item sub-item">MVBAC - PRODUCTION - LIQUID<span class="chevron">▾</span></a>
+          <a href="#" class="tree-item sub-item">MVBAC - UTILITIES (FACILITIES)<span class="chevron">▾</span></a>
+          <a href="#" class="tree-item sub-item">MVBAC - UTILITIES (MARINE)<span class="chevron">▾</span></a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main-content">
+      <div class="pg-content">
+
+        <!-- ZONE A: Equipment + Trends -->
+        <div class="zone-a">
+
+          <!-- LEFT: Equipment Diagrams (compact) -->
+          <div class="equipment-panel" id="equip-panel">
+
+            <!-- LP Compression -->
+            <div class="section-title">LP Compression <span class="subtitle">2 × 100%</span></div>
+            <div class="compression-block">
+              <div class="train-row" id="lp-a"><span class="train-name">Train A</span></div>
+              <div class="train-row spare" id="lp-b"><span class="train-name">Train B <span class="spare-tag">Spare</span></span></div>
+            </div>
+
+            <!-- MP Compression -->
+            <div class="section-title">MP Compression <span class="subtitle">2 × 100%</span></div>
+            <div class="compression-block">
+              <div class="train-row" id="mp-a"><span class="train-name">Train A</span></div>
+              <div class="train-row spare" id="mp-b"><span class="train-name">Train B <span class="spare-tag">Spare</span></span></div>
+            </div>
+
+            <!-- HP Compression -->
+            <div class="section-title">HP Compression <span class="subtitle">3 × 50% Trains</span></div>
+            <div class="compression-block">
+              <div class="train-row" id="hp-1"><span class="train-name">Train 1</span></div>
+              <div class="train-row" id="hp-2"><span class="train-name">Train 2</span></div>
+              <div class="train-row" id="hp-3"><span class="train-name">Train 3</span></div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT: Trends (4 charts) -->
+          <div class="trends-panel" id="trends-panel">
+            <div class="col-header" id="trends-header">Gas Trends · Last 48 Hours</div>
+
+            <div class="trend-chart-row"><div class="chart-head"><h4>Gas Production</h4><span class="unit">MSm³/d</span></div><div class="trend-chart-box"><canvas id="trend-1"></canvas></div></div>
+            <div class="trend-chart-row"><div class="chart-head"><h4>Flare Gas</h4><span class="unit">Sm³/d</span></div><div class="trend-chart-box"><canvas id="trend-2"></canvas></div></div>
+            <div class="trend-chart-row"><div class="chart-head"><h4>Gas Injection</h4><span class="unit">MSm³/d</span></div><div class="trend-chart-box"><canvas id="trend-3"></canvas></div></div>
+            <div class="trend-chart-row"><div class="chart-head"><h4>Gas Injection by Well</h4><span class="unit">MSm³/d</span></div><div class="trend-chart-box"><canvas id="trend-4"></canvas></div></div>
+          </div>
+
+        </div><!-- /zone-a -->
+
+        <!-- ZONE B: Detail + Alarms -->
+        <div class="zone-b">
+          <div class="detail-panel">
+            <div class="detail-tabs">
+              <button class="tab active" data-tab="cases">Cases</button>
+              <button class="tab" data-tab="alarms">Alarms</button>
+              <button class="tab" data-tab="vibration">Vibration analysis</button>
+              <button class="tab" data-tab="oil">Oil analysis</button>
+              <button class="tab" data-tab="maint-notes">Maint. notes</button>
+              <button class="tab" data-tab="maint-plans">Maint. plans</button>
+            </div>
+            <div class="cases-toolbar">
+              <div class="cases-counters"><span class="counter-pill">Open: 3</span><span class="counter-plain">Closed: 0</span></div>
+              <div class="cases-actions"><a href="#">⇗ Cases page</a><button class="btn-new">⊕ New</button></div>
+            </div>
+            <table class="data-table"><thead><tr>
+              <th>Sever.</th><th>Created</th><th>Name</th><th>Stage</th><th>Actions st.</th><th>Last edition</th>
+            </tr></thead><tbody id="cases-body"></tbody></table>
+          </div>
+          <div class="alarms-panel">
+            <div class="alarms-header">Production Gas Alarms <span class="count" id="alarm-count">0</span></div>
+            <div id="alarm-list"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Equipment Tooltip (fixed positioned, managed by JS) -->
+<div class="equip-tooltip" id="equip-tooltip"></div>
+
+<script src="js/mock-data.js"></script>
+<script>
+// ============================================================
+// SVG Icons
+// ============================================================
+function motorSvg() {
+  return `<svg viewBox="0 0 40 32" fill="none"><rect x="3" y="3" width="26" height="26" rx="3" fill="#1a1d24" stroke="#8a8f98" stroke-width="1.5"/><text x="16" y="20" text-anchor="middle" fill="#d1d5db" font-size="12" font-weight="600" font-family="Inter,sans-serif">M</text><line x1="29" y1="16" x2="38" y2="16" stroke="#8a8f98" stroke-width="1.5"/></svg>`;
+}
+function compressorSvg() {
+  return `<svg viewBox="0 0 40 32" fill="none"><polygon points="3,3 37,12 37,20 3,29" fill="#1a1d24" stroke="#8a8f98" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+}
+function scrubberSvg() {
+  return `<svg viewBox="0 0 28 36" fill="none"><rect x="3" y="3" width="22" height="30" rx="11" fill="#1a1d24" stroke="#8a8f98" stroke-width="1.5"/></svg>`;
+}
+function flowArrowSvg() {
+  return `<svg viewBox="0 0 16 10" fill="none"><line x1="0" y1="5" x2="12" y2="5" stroke="#4b5563" stroke-width="1"/><polyline points="10,2.5 13,5 10,7.5" stroke="#4b5563" stroke-width="1" fill="none"/></svg>`;
+}
+
+// ============================================================
+// Mock Data for Equipment
+// ============================================================
+const EQUIP_DATA = {
+  'MVBAC-20VG101': { desc:'LP Scrubber', status:'green', hours:12400, lastMaint:'02/15/2026', maintNotes:[] },
+  'MVBAC-20KM101': { desc:'LP Motor', status:'green', hours:12400, lastMaint:'02/15/2026', maintNotes:[], power:'1.5 MW' },
+  'MVBAC-20KA101': { desc:'LP Compressor', status:'green', hours:12400, lastMaint:'02/15/2026', maintNotes:[] },
+  'MVBAC-20VG102': { desc:'LP Scrubber (Spare)', status:'gray', hours:0, lastMaint:'—', maintNotes:[] },
+  'MVBAC-20KM102': { desc:'LP Motor (Spare)', status:'gray', hours:0, lastMaint:'—', maintNotes:[], power:'1.5 MW' },
+  'MVBAC-20KA102': { desc:'LP Compressor (Spare)', status:'gray', hours:0, lastMaint:'—', maintNotes:[] },
+  'MVBAC-23VG101': { desc:'MP Scrubber', status:'green', hours:8900, lastMaint:'01/22/2026', maintNotes:[] },
+  'MVBAC-23KM101': { desc:'MP Motor', status:'green', hours:8900, lastMaint:'01/22/2026', maintNotes:[], power:'12 MW' },
+  'MVBAC-23KA201': { desc:'MP 1st Stage', status:'green', hours:8900, lastMaint:'01/22/2026', maintNotes:[] },
+  'MVBAC-23KA202': { desc:'MP 2nd Stage', status:'green', hours:8900, lastMaint:'01/22/2026', maintNotes:[] },
+  'MVBAC-23VG102': { desc:'MP Scrubber (Spare)', status:'gray', hours:0, lastMaint:'—', maintNotes:[] },
+  'MVBAC-23KM102': { desc:'MP Motor (Spare)', status:'gray', hours:0, lastMaint:'—', maintNotes:[], power:'12 MW' },
+  'MVBAC-23KA203': { desc:'MP 1st Stage (Spare)', status:'gray', hours:0, lastMaint:'—', maintNotes:[] },
+  'MVBAC-23KA204': { desc:'MP 2nd Stage (Spare)', status:'gray', hours:0, lastMaint:'—', maintNotes:[] },
+  'MVBAC-23KM401': { desc:'HP1 Motor (14MW)', status:'green', hours:14200, lastMaint:'12/10/2025', maintNotes:[], power:'14 MW' },
+  'MVBAC-23KA401': { desc:'HP1 1st Stage Compr', status:'red', hours:14200, lastMaint:'12/10/2025', maintNotes:['WO-2026-0341: Bearing inspection overdue','WO-2026-0355: Seal gas pressure review'], power:'' },
+  'MVBAC-23KM402': { desc:'HP1 Motor (12MW)', status:'green', hours:14200, lastMaint:'12/10/2025', maintNotes:[], power:'12 MW' },
+  'MVBAC-23KA402': { desc:'HP1 2nd Stage Compr', status:'green', hours:14200, lastMaint:'12/10/2025', maintNotes:[] },
+  'MVBAC-23KM403': { desc:'HP1 Inj Motor (6.2MW)', status:'green', hours:14200, lastMaint:'12/10/2025', maintNotes:[], power:'6.2 MW' },
+  'MVBAC-23KA403': { desc:'HP1 Inj Compr (GIC)', status:'green', hours:14200, lastMaint:'12/10/2025', maintNotes:[] },
+  'MVBAC-23KM501': { desc:'HP2 Motor (14MW)', status:'green', hours:11800, lastMaint:'01/05/2026', maintNotes:[], power:'14 MW' },
+  'MVBAC-23KA501': { desc:'HP2 1st Stage Compr', status:'green', hours:11800, lastMaint:'01/05/2026', maintNotes:[] },
+  'MVBAC-23KM502': { desc:'HP2 Motor (12MW)', status:'green', hours:11800, lastMaint:'01/05/2026', maintNotes:[], power:'12 MW' },
+  'MVBAC-23KA502': { desc:'HP2 2nd Stage Compr', status:'green', hours:11800, lastMaint:'01/05/2026', maintNotes:[] },
+  'MVBAC-23KM503': { desc:'HP2 Inj Motor (6.2MW)', status:'green', hours:11800, lastMaint:'01/05/2026', maintNotes:[], power:'6.2 MW' },
+  'MVBAC-23KA503': { desc:'HP2 Inj Compr (GIC)', status:'green', hours:11800, lastMaint:'01/05/2026', maintNotes:[] },
+  'MVBAC-26KM301': { desc:'HP3 Motor (14MW)', status:'green', hours:13600, lastMaint:'11/28/2025', maintNotes:[], power:'14 MW' },
+  'MVBAC-26KA301': { desc:'HP3 1st Stage Compr', status:'red', hours:13600, lastMaint:'11/28/2025', maintNotes:['WO-2026-0398: Lube oil cooler inspection'] },
+  'MVBAC-26KM302': { desc:'HP3 Motor (12MW)', status:'green', hours:13600, lastMaint:'11/28/2025', maintNotes:[], power:'12 MW' },
+  'MVBAC-26KA302': { desc:'HP3 2nd Stage Compr', status:'green', hours:13600, lastMaint:'11/28/2025', maintNotes:[] },
+  'MVBAC-26KM303': { desc:'HP3 Inj Motor (6.2MW)', status:'green', hours:13600, lastMaint:'11/28/2025', maintNotes:[], power:'6.2 MW' },
+  'MVBAC-26KA303': { desc:'HP3 Inj Compr (GIC)', status:'green', hours:13600, lastMaint:'11/28/2025', maintNotes:[] },
+};
+
+// ============================================================
+// Build Equipment Icons
+// ============================================================
+function icon(type, tag) {
+  const eq = EQUIP_DATA[tag] || { desc:'', status:'green', hours:0, lastMaint:'—', maintNotes:[] };
+  let svg = type==='motor' ? motorSvg() : type==='compressor' ? compressorSvg() : scrubberSvg();
+  const shortTag = tag.replace('MVBAC-','');
+  return `<div class="equip-icon" data-tag="${tag}" data-type="${type}"
+    onmouseenter="showTooltip(event,this)" onmouseleave="hideTooltip()"
+    onclick="selectEquipment(this)">
+    <div class="icon-shape">${svg}<span class="status-dot status-${eq.status}"></span></div>
+    <span class="equip-label">${shortTag}</span>
+    ${eq.power ? `<span class="equip-power">${eq.power}</span>` : ''}
+  </div>`;
+}
+function arr() { return `<div class="flow-arrow">${flowArrowSvg()}</div>`; }
+
+// LP
+document.getElementById('lp-a').innerHTML += icon('scrubber','MVBAC-20VG101')+arr()+icon('motor','MVBAC-20KM101')+arr()+icon('compressor','MVBAC-20KA101')+arr();
+document.getElementById('lp-b').innerHTML += icon('scrubber','MVBAC-20VG102')+arr()+icon('motor','MVBAC-20KM102')+arr()+icon('compressor','MVBAC-20KA102')+arr();
+// MP
+document.getElementById('mp-a').innerHTML += icon('scrubber','MVBAC-23VG101')+arr()+icon('motor','MVBAC-23KM101')+arr()+icon('compressor','MVBAC-23KA201')+arr()+icon('compressor','MVBAC-23KA202')+arr();
+document.getElementById('mp-b').innerHTML += icon('scrubber','MVBAC-23VG102')+arr()+icon('motor','MVBAC-23KM102')+arr()+icon('compressor','MVBAC-23KA203')+arr()+icon('compressor','MVBAC-23KA204')+arr();
+// HP
+document.getElementById('hp-1').innerHTML += icon('motor','MVBAC-23KM401')+arr()+icon('compressor','MVBAC-23KA401')+arr()+icon('motor','MVBAC-23KM402')+arr()+icon('compressor','MVBAC-23KA402')+arr()+icon('motor','MVBAC-23KM403')+arr()+icon('compressor','MVBAC-23KA403')+arr();
+document.getElementById('hp-2').innerHTML += icon('motor','MVBAC-23KM501')+arr()+icon('compressor','MVBAC-23KA501')+arr()+icon('motor','MVBAC-23KM502')+arr()+icon('compressor','MVBAC-23KA502')+arr()+icon('motor','MVBAC-23KM503')+arr()+icon('compressor','MVBAC-23KA503')+arr();
+document.getElementById('hp-3').innerHTML += icon('motor','MVBAC-26KM301')+arr()+icon('compressor','MVBAC-26KA301')+arr()+icon('motor','MVBAC-26KM302')+arr()+icon('compressor','MVBAC-26KA302')+arr()+icon('motor','MVBAC-26KM303')+arr()+icon('compressor','MVBAC-26KA303')+arr();
+
+// ============================================================
+// TOOLTIP (fixed positioned, always on top)
+// ============================================================
+const tooltipEl = document.getElementById('equip-tooltip');
+
+function showTooltip(event, el) {
+  const tag = el.dataset.tag;
+  const eq = EQUIP_DATA[tag];
+  if (!eq) return;
+  const maintHTML = eq.maintNotes.length > 0
+    ? `<div class="tooltip-maint"><div style="color:#e67e22;font-weight:600;">⚠ Open Maint. Notifications:</div>${eq.maintNotes.map(n=>`<div class="maint-item">• ${n}</div>`).join('')}</div>`
+    : '';
+  tooltipEl.innerHTML = `
+    <div class="tooltip-tag">${tag}</div>
+    <div class="tooltip-desc">${eq.desc}</div>
+    <div class="tooltip-stats">
+      <span class="stat-label">Running Hours</span><span class="stat-value">${eq.hours.toLocaleString()}h</span>
+      <span class="stat-label">Last Maintenance</span><span class="stat-value">${eq.lastMaint}</span>
+      <span class="stat-label">Status</span><span class="stat-value" style="color:${eq.status==='red'?'#e74c3c':eq.status==='green'?'#2ecc71':'#555'}">${eq.status==='red'?'ALARM':eq.status==='green'?'Running':'Spare'}</span>
+    </div>
+    ${maintHTML}
+  `;
+  tooltipEl.style.display = 'block';
+  const rect = el.getBoundingClientRect();
+  tooltipEl.style.left = Math.min(rect.left, window.innerWidth - 240) + 'px';
+  tooltipEl.style.top = (rect.top - tooltipEl.offsetHeight - 8) + 'px';
+  if (parseInt(tooltipEl.style.top) < 0) tooltipEl.style.top = (rect.bottom + 8) + 'px';
+}
+
+function hideTooltip() { tooltipEl.style.display = 'none'; }
+
+// ============================================================
+// EQUIPMENT SELECTION → Change trends to equipment-specific
+// ============================================================
+let selectedTag = null;
+const trendCharts = {};
+
+// 3 random data collections for equipment-specific trends
+const EQUIP_MOCK = [
+  { pIn: generateMock(48,86,3), pOut: generateMock(48,253,8), vib: [generateMock(48,2.1,0.8),generateMock(48,1.8,0.5),generateMock(48,3.2,1.2),generateMock(48,2.5,0.7)], temp: [generateMock(48,72,4),generateMock(48,68,3),generateMock(48,75,5),generateMock(48,70,3)], power: generateMock(48,12.8,0.6) },
+  { pIn: generateMock(48,85,4), pOut: generateMock(48,250,10), vib: [generateMock(48,1.5,0.4),generateMock(48,2.0,0.6),generateMock(48,1.9,0.5),generateMock(48,2.3,0.8)], temp: [generateMock(48,65,3),generateMock(48,70,4),generateMock(48,67,3),generateMock(48,73,5)], power: generateMock(48,13.2,0.5) },
+  { pIn: generateMock(48,88,5), pOut: generateMock(48,255,7), vib: [generateMock(48,3.5,1.5),generateMock(48,2.8,0.9),generateMock(48,1.2,0.3),generateMock(48,2.0,0.6)], temp: [generateMock(48,78,6),generateMock(48,82,8),generateMock(48,71,4),generateMock(48,76,5)], power: generateMock(48,14.0,0.4) },
+];
+
+function generateMock(n, base, variance) {
+  const d = [];
+  for(let i=0;i<n;i++) d.push(Math.round((base + (Math.random()-0.5)*variance*2)*100)/100);
+  return d;
+}
+
+function selectEquipment(el) {
+  // Deselect previous
+  document.querySelectorAll('.equip-icon.selected').forEach(e => e.classList.remove('selected'));
+  const tag = el.dataset.tag;
+  if (selectedTag === tag) { selectedTag = null; renderDefaultTrends(); return; }
+  selectedTag = tag;
+  el.classList.add('selected');
+  renderEquipmentTrends(tag);
+}
+
+function renderEquipmentTrends(tag) {
+  const panel = document.getElementById('trends-panel');
+  const header = document.getElementById('trends-header');
+  header.textContent = `${tag} · Equipment Trends`;
+  const shortTag = tag.replace('MVBAC-','');
+
+  // Pick random data collection
+  const mockIdx = Math.floor(Math.random()*3);
+  const m = EQUIP_MOCK[mockIdx];
+  const labels = MOCK.trendLabels.map((l,i) => i%6===0?l:'');
+
+  // Destroy existing
+  Object.values(trendCharts).forEach(c => c.destroy());
+
+  // Chart 1: Pressure In/Out
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(2) h4').textContent = 'Pressure';
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(2) .unit').textContent = 'bara';
+  trendCharts['trend-1'] = new Chart(document.getElementById('trend-1'), {
+    type:'line', data:{ labels, datasets:[
+      { label:'Inlet', data:m.pIn, borderColor:'#3db9cf', borderWidth:2, pointRadius:0, tension:0.3, fill:false },
+      { label:'Outlet', data:m.pOut, borderColor:'#e67e22', borderWidth:2, pointRadius:0, tension:0.3, fill:false },
+    ]}, options: chartOpts()
+  });
+
+  // Chart 2: Vibration (4 probes)
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(3) h4').textContent = 'Vibration';
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(3) .unit').textContent = 'mm/s';
+  const vibColors = ['#2ecc71','#3498db','#e67e22','#e74c3c'];
+  trendCharts['trend-2'] = new Chart(document.getElementById('trend-2'), {
+    type:'line', data:{ labels, datasets: m.vib.map((v,i) => ({
+      label:`Probe ${i+1}`, data:v, borderColor:vibColors[i], borderWidth:1.5, pointRadius:0, tension:0.3, fill:false
+    }))}, options: chartOpts()
+  });
+
+  // Chart 3: Bearing Temperatures (4)
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(4) h4').textContent = 'Bearing Temperature';
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(4) .unit').textContent = '°C';
+  const tempColors = ['#f1c40f','#e67e22','#e74c3c','#9b59b6'];
+  trendCharts['trend-3'] = new Chart(document.getElementById('trend-3'), {
+    type:'line', data:{ labels, datasets: m.temp.map((t,i) => ({
+      label:`Brg ${i+1}`, data:t, borderColor:tempColors[i], borderWidth:1.5, pointRadius:0, tension:0.3, fill:false
+    }))}, options: chartOpts()
+  });
+
+  // Chart 4: Power
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(5) h4').textContent = 'Power Consumption';
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(5) .unit').textContent = 'MW';
+  trendCharts['trend-4'] = new Chart(document.getElementById('trend-4'), {
+    type:'line', data:{ labels, datasets:[
+      { label:'Power', data:m.power, borderColor:'#3db9cf', backgroundColor:'#3db9cf18', borderWidth:2, pointRadius:0, tension:0.3, fill:true }
+    ]}, options: chartOpts()
+  });
+}
+
+function renderDefaultTrends() {
+  const header = document.getElementById('trends-header');
+  header.textContent = 'Gas Trends · Last 48 Hours';
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(2) h4').textContent = 'Gas Production';
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(2) .unit').textContent = 'MSm³/d';
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(3) h4').textContent = 'Flare Gas';
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(3) .unit').textContent = 'Sm³/d';
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(4) h4').textContent = 'Gas Injection';
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(4) .unit').textContent = 'MSm³/d';
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(5) h4').textContent = 'Gas Injection by Well';
+  document.querySelector('#trends-panel .trend-chart-row:nth-child(5) .unit').textContent = 'MSm³/d';
+  Object.values(trendCharts).forEach(c => c.destroy());
+  initDefaultTrends();
+}
+
+// ============================================================
+// Chart.js defaults
+// ============================================================
+Chart.defaults.color = '#6b7280';
+Chart.defaults.borderColor = '#2a2d35';
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size = 10;
+Chart.defaults.plugins.legend.labels.boxWidth = 10;
+Chart.defaults.plugins.legend.labels.padding = 6;
+Chart.defaults.plugins.legend.labels.font = { size: 9 };
+Chart.defaults.plugins.legend.position = 'bottom';
+Chart.defaults.animation.duration = 400;
+
+const grid = '#2a2d35';
+const so = { grid: { color: grid, drawBorder: false }, ticks: { color: '#6b7280', font: { size: 9 } } };
+
+function chartOpts() { return { responsive:true, maintainAspectRatio:false, scales:{x:so,y:so}, plugins:{ legend:{display:true} } }; }
+
+function lineDS(label, data, color, dashed) {
+  return { label, data, borderColor:color, backgroundColor:color+'18', borderWidth:dashed?1.5:2,
+    borderDash:dashed?[5,5]:[], pointRadius:0, pointHoverRadius:3, tension:0.3, fill:!dashed };
+}
+
+// ============================================================
+// DEFAULT TRENDS (4 charts)
+// ============================================================
+function initDefaultTrends() {
+  const labels = MOCK.trendLabels.map((l,i) => i%6===0?l:'');
+  const injData = generateMock(48, 0.18, 0.03);
+  const wellPI01 = generateMock(48, 0.06, 0.01);
+  const wellPI04A = generateMock(48, 0.05, 0.012);
+  const wellPI08 = generateMock(48, 0.07, 0.015);
+
+  trendCharts['trend-1'] = new Chart(document.getElementById('trend-1'), {
+    type:'line', data:{ labels, datasets:[
+      lineDS('Production', MOCK.gasTrend.production, '#e67e22'),
+      lineDS('Plan', MOCK.gasTrend.plan, '#8a8f98', true)
+    ]}, options: chartOpts()
+  });
+
+  trendCharts['trend-2'] = new Chart(document.getElementById('trend-2'), {
+    type:'line', data:{ labels, datasets:[
+      lineDS('Flare Gas', MOCK.flareTrend.flare, '#f1c40f')
+    ]}, options: chartOpts()
+  });
+
+  trendCharts['trend-3'] = new Chart(document.getElementById('trend-3'), {
+    type:'line', data:{ labels, datasets:[
+      lineDS('Injection', injData, '#3db9cf')
+    ]}, options: chartOpts()
+  });
+
+  trendCharts['trend-4'] = new Chart(document.getElementById('trend-4'), {
+    type:'line', data:{ labels, datasets:[
+      lineDS('PI-01', wellPI01, '#2ecc71'),
+      lineDS('PI-04A', wellPI04A, '#e67e22'),
+      lineDS('PI-08', wellPI08, '#3498db'),
+    ]}, options: chartOpts()
+  });
+}
+
+initDefaultTrends();
+
+// ============================================================
+// Cases Table
+// ============================================================
+document.getElementById('cases-body').innerHTML = MOCK.cases.map(c => {
+  const bars = Array.from({length:c.severity},()=>
+    `<span style="display:inline-block;width:3px;height:16px;border-radius:1px;background:${c.severity===4?'#e74c3c':'#e67e22'}"></span>`).join('');
+  return `<tr><td>${bars}</td><td>${c.created}</td><td>${c.name}</td><td>${c.stage}</td><td>${c.actionsSt}</td><td>${c.lastEdition}</td></tr>`;
+}).join('');
+
+// ============================================================
+// Alarm Cards (filtered)
+// ============================================================
+const filtered = MOCK.alarms.filter(a => a.group==='production-gas');
+document.getElementById('alarm-count').textContent = filtered.length;
+document.getElementById('alarm-list').innerHTML = filtered.map(a => {
+  const bars = Array.from({length:a.severityBars},()=>
+    `<span class="bar" style="background:${a.severity==='critical'?'#e74c3c':'#e67e22'}"></span>`).join('');
+  const bc = a.severity==='critical'?'badge-critical':'badge-high';
+  return `<div class="alarm-card severity-${a.severity}">
+    <div class="alarm-asset"><span class="severity-bars">${bars}</span>${a.asset} (${a.assetDesc})</div>
+    <div class="alarm-model">${a.model}</div>
+    <div class="alarm-meta"><span>${a.start}</span><span class="alarm-duration">${a.duration}</span></div>
+    <div class="alarm-bottom">
+      <span class="alarm-occurrences">${a.occurrences!=null?'Occ: '+a.occurrences:''}</span>
+      ${a.occurrences!=null?`<span class="alarm-badge ${bc}">${a.occurrences}</span>`:''}
+      <span class="alarm-arrow">›</span>
+    </div>
+  </div>`;
+}).join('');
+
+// ============================================================
+// Tab switching
+// ============================================================
+document.querySelectorAll('.detail-tabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.detail-tabs .tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

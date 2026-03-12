@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIGHTHOUSE — MVBAC Overview</title>
+  <meta name="description" content="MVBAC ship overview dashboard">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- HEADER -->
+  <header class="header-bar">
+    <a href="index.html" class="header-logo">
+      <span class="header-logo-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="8" width="8" height="14" rx="1" fill="#e74c3c"/><rect x="12" y="4" width="8" height="18" rx="1" fill="#e74c3c" opacity="0.7"/><rect x="6" y="2" width="5" height="5" rx="2.5" fill="#e74c3c" opacity="0.5"/></svg></span>
+      <span class="header-logo-text">LIGHTHOUSE</span>
+      <span class="header-logo-powered">powered by shape<span class="shape-dot"></span></span>
+    </a>
+    <div class="header-breadcrumb">
+      <a href="#">MODEC do Brasil</a><span class="sep">›</span><span class="current">MVBAC</span>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html" class="active">Overview</a><a href="#">Alarm</a><a href="#">Cases</a><a href="#">Asset Health</a><a href="#">Performance</a><a href="#">Flare</a><a href="#">Charts</a>
+    </nav>
+    <div class="header-user">
+      <a href="#">⊘ Help</a><span class="user-name">Caio Dias</span><span>▾</span>
+      <div class="app-grid"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-search"><input type="text" placeholder="Search"><span class="search-icon">🔍</span><span class="close-btn">×</span></div>
+      <div class="sidebar-tree">
+        <a href="index.html" class="tree-item ship-root active">MVBAC<span class="chevron open">▾</span></a>
+        <div class="tree-children">
+          <a href="production-gas.html" class="tree-item sub-item">MVBAC - PRODUCTION - GAS<span class="chevron">▾</span></a>
+          <a href="#" class="tree-item sub-item">MVBAC - PRODUCTION - LIQUID<span class="chevron">▾</span></a>
+          <a href="#" class="tree-item sub-item">MVBAC - UTILITIES (FACILITIES)<span class="chevron">▾</span></a>
+          <a href="#" class="tree-item sub-item">MVBAC - UTILITIES (MARINE)<span class="chevron">▾</span></a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+      <div class="overview-layout">
+
+        <!-- LEFT: Paired Charts -->
+        <div class="overview-charts" id="charts-col">
+
+          <!-- OIL -->
+          <div class="chart-pair" data-kpi="oil">
+            <div class="chart-pair-label">Oil / Cond Production</div>
+            <div class="chart-box">
+              <div class="chart-head"><h4>Daily Accumulated</h4><span class="unit">Sm³</span></div>
+              <button class="btn-expand" onclick="expandChart('oil-bar')" title="Expand">⛶</button>
+              <div class="chart-canvas-wrap"><canvas id="chart-oil-bar"></canvas></div>
+            </div>
+            <div class="chart-box">
+              <div class="chart-head"><h4>Rate · 48h</h4><span class="unit">Sm³/d</span></div>
+              <button class="btn-expand" onclick="expandChart('oil-trend')" title="Expand">⛶</button>
+              <div class="chart-canvas-wrap"><canvas id="chart-oil-trend"></canvas></div>
+            </div>
+          </div>
+
+          <!-- GAS -->
+          <div class="chart-pair" data-kpi="gas">
+            <div class="chart-pair-label">Gas Production</div>
+            <div class="chart-box">
+              <div class="chart-head"><h4>Daily Accumulated</h4><span class="unit">MSm³</span></div>
+              <button class="btn-expand" onclick="expandChart('gas-bar')" title="Expand">⛶</button>
+              <div class="chart-canvas-wrap"><canvas id="chart-gas-bar"></canvas></div>
+            </div>
+            <div class="chart-box">
+              <div class="chart-head"><h4>Rate · 48h</h4><span class="unit">MSm³/d</span></div>
+              <button class="btn-expand" onclick="expandChart('gas-trend')" title="Expand">⛶</button>
+              <div class="chart-canvas-wrap"><canvas id="chart-gas-trend"></canvas></div>
+            </div>
+          </div>
+
+          <!-- WATER -->
+          <div class="chart-pair" data-kpi="water">
+            <div class="chart-pair-label">Water Production</div>
+            <div class="chart-box">
+              <div class="chart-head"><h4>Daily Accumulated</h4><span class="unit">Sm³</span></div>
+              <button class="btn-expand" onclick="expandChart('water-bar')" title="Expand">⛶</button>
+              <div class="chart-canvas-wrap"><canvas id="chart-water-bar"></canvas></div>
+            </div>
+            <div class="chart-box">
+              <div class="chart-head"><h4>Rate · 48h</h4><span class="unit">Sm³/d</span></div>
+              <button class="btn-expand" onclick="expandChart('water-trend')" title="Expand">⛶</button>
+              <div class="chart-canvas-wrap"><canvas id="chart-water-trend"></canvas></div>
+            </div>
+          </div>
+
+          <!-- FLARE -->
+          <div class="chart-pair" data-kpi="flare">
+            <div class="chart-pair-label">Flare Gas</div>
+            <div class="chart-box">
+              <div class="chart-head"><h4>Daily Accumulated</h4><span class="unit">Sm³</span></div>
+              <button class="btn-expand" onclick="expandChart('flare-bar')" title="Expand">⛶</button>
+              <div class="chart-canvas-wrap"><canvas id="chart-flare-bar"></canvas></div>
+            </div>
+            <div class="chart-box">
+              <div class="chart-head"><h4>Rate · 48h</h4><span class="unit">Sm³/d</span></div>
+              <button class="btn-expand" onclick="expandChart('flare-trend')" title="Expand">⛶</button>
+              <div class="chart-canvas-wrap"><canvas id="chart-flare-trend"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Alarms + Opportunities -->
+        <div class="overview-alarms" id="alarms-col">
+          <div class="alarms-header">Active Alarms <span class="count" id="alarm-count">0</span></div>
+          <div id="alarm-list"></div>
+          <div id="alarm-show-more-wrap"></div>
+
+          <div class="section-separator">
+            <span>Optimization Opportunities</span>
+            <span class="sep-line"></span>
+          </div>
+          <div id="opp-list"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FULLSCREEN CHART MODAL -->
+<div class="modal-overlay" id="chart-modal">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeChartModal()">×</button>
+    <div class="modal-title" id="modal-chart-title"></div>
+    <div class="modal-canvas-wrap"><canvas id="modal-chart-canvas"></canvas></div>
+  </div>
+</div>
+
+<!-- ALARM DETAIL MODAL -->
+<div class="modal-overlay" id="alarm-modal">
+  <div class="modal-content" style="max-width:780px;">
+    <button class="modal-close" onclick="closeAlarmModal()">×</button>
+    <div id="alarm-modal-body"></div>
+  </div>
+</div>
+
+<script src="js/mock-data.js"></script>
+<script>
+// ============================================================
+// Chart.js Defaults
+// ============================================================
+Chart.defaults.color = '#6b7280';
+Chart.defaults.borderColor = '#2a2d35';
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size = 10;
+Chart.defaults.plugins.legend.labels.boxWidth = 10;
+Chart.defaults.plugins.legend.labels.padding = 8;
+Chart.defaults.plugins.legend.labels.font = { size: 9 };
+Chart.defaults.plugins.legend.position = 'bottom';
+Chart.defaults.animation.duration = 500;
+
+const grid = '#2a2d35';
+const so = { grid: { color: grid, drawBorder: false }, ticks: { color: '#6b7280', font: { size: 9 } } };
+
+// ============================================================
+// Color Palette (per user feedback)
+//  Oil = green, Gas = orange, Water = blue shades, Flare = yellow shades, Loss = red
+// ============================================================
+const C = {
+  oilProd: '#2ecc71', oilProdFill: '#2ecc7118',
+  gasProd: '#e67e22', gasProdFill: '#e67e2218',
+  waterOB: '#3498db', waterOBFill: '#3498db18',
+  waterWI: '#1abc9c', waterWIFill: '#1abc9c18',
+  flareTotal: '#f1c40f', flareTotalFill: '#f1c40f18',
+  flareFPSO: '#e6b910', flareFPSOFill: '#e6b91018',
+  loss: '#e74c3c',
+  plan: '#8a8f98',
+};
+
+// ============================================================
+// Store chart configs for fullscreen re-render
+// ============================================================
+const chartConfigs = {};
+
+function makeChart(canvasId, type, data, options) {
+  const ctx = document.getElementById(canvasId);
+  const chart = new Chart(ctx, { type, data, options });
+  chartConfigs[canvasId] = { type, data: JSON.parse(JSON.stringify(data)), options };
+  return chart;
+}
+
+// ============================================================
+// BAR CHARTS
+// ============================================================
+function barDS(label, data, color) {
+  return { label, data, backgroundColor: color, borderRadius: 2, barPercentage: 0.7 };
+}
+
+makeChart('chart-oil-bar', 'bar', {
+  labels: MOCK.barLabels,
+  datasets: [barDS('Production', MOCK.oil.production, C.oilProd), barDS('Loss', MOCK.oil.loss, C.loss)]
+}, { responsive:true, maintainAspectRatio:false, scales:{ x:{...so,stacked:true}, y:{...so,stacked:true} } });
+
+makeChart('chart-gas-bar', 'bar', {
+  labels: MOCK.barLabels,
+  datasets: [barDS('Production', MOCK.gas.production, C.gasProd), barDS('Loss', MOCK.gas.loss, C.loss)]
+}, { responsive:true, maintainAspectRatio:false, scales:{ x:{...so,stacked:true}, y:{...so,stacked:true} } });
+
+makeChart('chart-water-bar', 'bar', {
+  labels: MOCK.barLabels,
+  datasets: [barDS('Overboard', MOCK.water.overboard, C.waterOB), barDS('Injection', MOCK.water.injection, C.waterWI)]
+}, { responsive:true, maintainAspectRatio:false, scales:{ x:so, y:so } });
+
+makeChart('chart-flare-bar', 'bar', {
+  labels: MOCK.barLabels,
+  datasets: [barDS('Total Flare', MOCK.flare.total, C.flareTotal), barDS('FPSO Flare', MOCK.flare.fpso, C.flareFPSO)]
+}, { responsive:true, maintainAspectRatio:false, scales:{ x:so, y:so } });
+
+// ============================================================
+// TREND LINES
+// ============================================================
+const tLabels = MOCK.trendLabels.map((l,i) => i%6===0 ? l : '');
+
+function lineDS(label, data, color, dashed) {
+  return { label, data, borderColor: color, backgroundColor: (color+'18'), borderWidth: dashed?1.5:2,
+    borderDash: dashed?[5,5]:[], pointRadius:0, pointHoverRadius:4,
+    pointHoverBackgroundColor: color, tension:0.3, fill:!dashed };
+}
+
+makeChart('chart-oil-trend', 'line', {
+  labels: tLabels,
+  datasets: [lineDS('Production', MOCK.oilTrend.production, C.oilProd), lineDS('Plan', MOCK.oilTrend.plan, C.plan, true)]
+}, { responsive:true, maintainAspectRatio:false, scales:{x:so,y:so} });
+
+makeChart('chart-gas-trend', 'line', {
+  labels: tLabels,
+  datasets: [lineDS('Production', MOCK.gasTrend.production, C.gasProd), lineDS('Plan', MOCK.gasTrend.plan, C.plan, true)]
+}, { responsive:true, maintainAspectRatio:false, scales:{x:so,y:so} });
+
+makeChart('chart-water-trend', 'line', {
+  labels: tLabels,
+  datasets: [lineDS('Overboard', MOCK.waterTrend.overboard, C.waterOB), lineDS('WI', MOCK.waterTrend.injection, C.waterWI), lineDS('Plan WI', MOCK.waterTrend.planWI, C.plan, true)]
+}, { responsive:true, maintainAspectRatio:false, scales:{x:so,y:so} });
+
+makeChart('chart-flare-trend', 'line', {
+  labels: tLabels,
+  datasets: [lineDS('Flare Gas', MOCK.flareTrend.flare, C.flareTotal)]
+}, { responsive:true, maintainAspectRatio:false, scales:{x:so,y:so} });
+
+// ============================================================
+// FULLSCREEN CHART MODAL
+// ============================================================
+let modalChart = null;
+
+function expandChart(chartId) {
+  const cfg = chartConfigs['chart-'+chartId];
+  if (!cfg) return;
+  const modal = document.getElementById('chart-modal');
+  const titleEl = document.getElementById('modal-chart-title');
+  // Derive title from chartId
+  const titles = {
+    'oil-bar':'Oil / Cond Production — Daily Accumulated (Sm³)',
+    'oil-trend':'Oil / Cond Production — Rate 48h (Sm³/d)',
+    'gas-bar':'Gas Production — Daily Accumulated (MSm³)',
+    'gas-trend':'Gas Production — Rate 48h (MSm³/d)',
+    'water-bar':'Water Production — Daily Accumulated (Sm³)',
+    'water-trend':'Water Production — Rate 48h (Sm³/d)',
+    'flare-bar':'Flare Gas — Daily Accumulated (Sm³)',
+    'flare-trend':'Flare Gas — Rate 48h (Sm³/d)',
+  };
+  titleEl.textContent = titles[chartId] || chartId;
+  modal.classList.add('open');
+
+  if (modalChart) modalChart.destroy();
+  const canvas = document.getElementById('modal-chart-canvas');
+  modalChart = new Chart(canvas, {
+    type: cfg.type,
+    data: JSON.parse(JSON.stringify(cfg.data)),
+    options: { ...cfg.options, responsive:true, maintainAspectRatio:false }
+  });
+}
+
+function closeChartModal() {
+  document.getElementById('chart-modal').classList.remove('open');
+  if (modalChart) { modalChart.destroy(); modalChart = null; }
+}
+
+document.getElementById('chart-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeChartModal();
+});
+
+// ============================================================
+// ALARM CARDS (limit 5, show more)
+// ============================================================
+const ALARM_LIMIT = 5;
+let showingAll = false;
+
+function renderAlarmCards() {
+  const alarms = MOCK.alarms;
+  const visible = showingAll ? alarms : alarms.slice(0, ALARM_LIMIT);
+  const remaining = alarms.length - ALARM_LIMIT;
+
+  document.getElementById('alarm-count').textContent = alarms.length;
+  document.getElementById('alarm-list').innerHTML = visible.map((a, idx) => {
+    const bars = Array.from({length: a.severityBars}, () =>
+      `<span class="bar" style="background:${a.severity==='critical'?'#e74c3c':'#e67e22'}"></span>`).join('');
+    const bc = a.severity==='critical'?'badge-critical':'badge-high';
+    return `
+      <div class="alarm-card severity-${a.severity}" onclick="openAlarmModal(${idx})">
+        <div class="alarm-asset"><span class="severity-bars">${bars}</span>${a.asset} (${a.assetDesc})</div>
+        <div class="alarm-model">${a.model}</div>
+        <div class="alarm-meta"><span>${a.start}</span><span class="alarm-duration">${a.duration}</span></div>
+        <div class="alarm-bottom">
+          <span class="alarm-occurrences">${a.occurrences!=null?'Occ: '+a.occurrences:''}</span>
+          ${a.occurrences!=null?`<span class="alarm-badge ${bc}">${a.occurrences}</span>`:''}
+          <span class="alarm-arrow">›</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  const wrap = document.getElementById('alarm-show-more-wrap');
+  if (remaining > 0 && !showingAll) {
+    wrap.innerHTML = `<button class="btn-show-more" onclick="showingAll=true;renderAlarmCards()">+ ${remaining} more alarm${remaining>1?'s':''}</button>`;
+  } else if (showingAll && alarms.length > ALARM_LIMIT) {
+    wrap.innerHTML = `<button class="btn-show-more" onclick="showingAll=false;renderAlarmCards()">Show less</button>`;
+  } else {
+    wrap.innerHTML = '';
+  }
+}
+renderAlarmCards();
+
+// ============================================================
+// ALARM DETAIL MODAL
+// ============================================================
+let alarmModalChart = null;
+
+const ALARM_PROGNOSES = [
+  'System 1 alarm level 4 in MVBAC-23KA401 related to 1X Amp.Drv-End Bearing Temperature Out of Band. Trigger: 95.2 °C, Value: 98.7 °C. Immediate inspection recommended. Bearing replacement may be required within 72h.',
+  'FC alarm in MVBAC-26KA301 — Lube Oil discharge temperature exceeded threshold (>75°C). Pattern consistent with degraded oil cooler performance or restricted flow. Recommend oil sampling and cooler inspection.',
+  'FM prealarm in MVBAC-23KA401 — Internal leakage detected in lube oil system. Differential pressure across seal increasing. Monitor closely; if trend continues, plan for seal replacement during next maintenance window.',
+  'FC alarm in MVBAC-43KC107B — Equipment has been idle without preservation cycle for >144h. Extended idle periods without preservation may lead to corrosion and bearing damage. Run preservation cycle or confirm intentional standby.',
+  'FC alarm in MVBAC-23KA401 — Primary seal gas injection pressure below minimum threshold (< 2.5 bar). Risk of process gas ingress into bearing cavity. Verify supply line and seal gas booster.',
+  'FC deviation alarm in MVBAC-50PS101A — Expected vs actual efficiency deviation >15%. Possible fouling, membrane degradation or instrument calibration drift.',
+];
+
+function openAlarmModal(idx) {
+  const a = MOCK.alarms[idx];
+  const modal = document.getElementById('alarm-modal');
+  const body = document.getElementById('alarm-modal-body');
+
+  const bars = Array.from({length: a.severityBars}, () =>
+    `<span class="bar" style="background:${a.severity==='critical'?'#e74c3c':'#e67e22'}"></span>`).join('');
+
+  body.innerHTML = `
+    <div class="alarm-modal-header">
+      <div class="sev-bars">${bars}</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:600;color:#fff">${a.model}</div>
+        <div style="font-size:12px;color:#9ca3af;margin-top:2px">${a.asset} (${a.assetDesc})</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:#6b7280">Start</div>
+        <div style="font-size:12px;color:#d1d5db">${a.start}</div>
+      </div>
+    </div>
+    <div class="alarm-modal-info">
+      <div class="info-item"><span class="info-label">Duration</span><span class="info-value">${a.duration}</span></div>
+      <div class="info-item"><span class="info-label">Occurrences</span><span class="info-value">${a.occurrences ?? '—'}</span></div>
+      <div class="info-item"><span class="info-label">Status</span><span class="info-value" style="color:#e74c3c">Active</span></div>
+      <div class="info-item"><span class="info-label">Group</span><span class="info-value">${a.group.replace('-',' ')}</span></div>
+    </div>
+    <div class="alarm-modal-prognosis"><strong>Prognosis:</strong> ${ALARM_PROGNOSES[idx] || 'No prognosis available.'}</div>
+    <div style="font-size:12px;color:#9ca3af;margin-bottom:8px;">Sensor Data · Alarm Period</div>
+    <div style="height:250px;position:relative"><canvas id="alarm-modal-chart"></canvas></div>
+  `;
+
+  modal.classList.add('open');
+
+  // Build alarm chart with red alarm band
+  if (alarmModalChart) alarmModalChart.destroy();
+  const labels = Array.from({length:72}, (_,i) => i%8===0 ? `${i}h` : '');
+  const sensorData = [];
+  let base = 40 + Math.random()*20;
+  for (let i=0; i<72; i++) {
+    base += (Math.random()-0.48)*3;
+    if (i > 48) base += (Math.random())*1.5; // ramp up in alarm zone
+    sensorData.push(Math.round(base*10)/10);
+  }
+  const sensor2 = sensorData.map(v => v - 10 + Math.random()*5);
+
+  alarmModalChart = new Chart(document.getElementById('alarm-modal-chart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Primary', data: sensorData, borderColor: '#e67e22', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false },
+        { label: 'Secondary', data: sensor2, borderColor: '#3498db', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true },
+        annotation: undefined,
+      },
+      scales: { x: so, y: so },
+    },
+    plugins: [{
+      id: 'alarmBand',
+      beforeDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea) return;
+        const xStart = chartArea.left + (chartArea.width * 48/72);
+        ctx.save();
+        ctx.fillStyle = 'rgba(231,76,60,0.18)';
+        ctx.fillRect(xStart, chartArea.top, chartArea.right - xStart, chartArea.bottom - chartArea.top);
+        ctx.restore();
+      }
+    }]
+  });
+}
+
+function closeAlarmModal() {
+  document.getElementById('alarm-modal').classList.remove('open');
+  if (alarmModalChart) { alarmModalChart.destroy(); alarmModalChart = null; }
+}
+
+document.getElementById('alarm-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeAlarmModal();
+});
+
+// ============================================================
+// OPTIMIZATION OPPORTUNITIES
+// ============================================================
+const AURA_SVG = `<svg viewBox="0 0 24 20" fill="none"><path d="M2 18 C4 8, 8 4, 12 6 C16 8, 18 2, 22 2" stroke="#3db9cf" stroke-width="2.5" stroke-linecap="round" fill="none"/><path d="M2 18 C5 12, 8 10, 12 12" stroke="#2ecc71" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.7"/></svg>`;
+
+const opportunities = [
+  { asset: 'MVBAC-23KA401', desc: 'Compressor seal gas optimization — reduce leakage rate by adjusting differential pressure setpoint', value: 'US$ 1.2M/yr', impact: 'high' },
+  { asset: 'MVBAC-23KA501', desc: 'Anti-surge valve tuning — current recycle volume 8% above optimal, impacting fuel gas consumption', value: 'US$ 0.8M/yr', impact: 'medium' },
+  { asset: 'MVBAC-26KA301', desc: 'Lube oil cooler cleaning schedule optimization — extend MTBF by 15% based on thermal degradation model', value: 'US$ 0.4M/yr', impact: 'medium' },
+];
+
+document.getElementById('opp-list').innerHTML = opportunities.map(o => `
+  <div class="opp-card">
+    <div class="opp-header">
+      <span class="opp-asset">${o.asset}</span>
+      <span class="opp-value">${o.value}</span>
+    </div>
+    <div class="opp-desc">${o.desc}</div>
+    <div class="opp-footer">
+      <span class="opp-aura">${AURA_SVG} Aura Recommendation</span>
+      <span style="color:#6b7280">${o.impact} impact</span>
+    </div>
+  </div>
+`).join('');
+</script>
+</body>
+</html>
