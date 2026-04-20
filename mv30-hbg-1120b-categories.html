@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIGHTHOUSE - MV30-HBG-1120B Categories</title>
+  <meta name="description" content="Category breakdown for MV30-HBG-1120B">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    .charts-page-wrap { padding: 18px 20px; }
+    .charts-page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #2a2d35;
+    }
+    .charts-page-header h2 { font-size: 16px; color: #ffffff; font-weight: 600; }
+    .charts-page-header p { font-size: 12px; color: #9ca3af; }
+    .charts-nav { display: flex; gap: 8px; }
+    .charts-nav a {
+      font-size: 11px;
+      text-decoration: none;
+      color: #9ca3af;
+      border: 1px solid #2a2d35;
+      border-radius: 12px;
+      padding: 4px 10px;
+      transition: 0.15s;
+    }
+    .charts-nav a.active { border-color: #3db9cf; color: #3db9cf; background: rgba(61,185,207,0.1); }
+    .chart-panel {
+      background: #1a1d24;
+      border: 1px solid #2a2d35;
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .chart-panel-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      color: #d1d5db;
+    }
+    .chart-panel-head .unit { color: #6b7280; font-size: 11px; }
+    .chart-panel-canvas { height: 420px; position: relative; }
+    .chart-panel-canvas canvas { width: 100% !important; height: 100% !important; }
+    @media (max-width: 900px) {
+      .charts-page-header { flex-direction: column; align-items: flex-start; }
+      .chart-panel-canvas { height: 320px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="header-bar">
+    <a href="index.html" class="header-logo">
+      <span class="header-logo-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="2" y="8" width="8" height="14" rx="1" fill="#e74c3c"/><rect x="12" y="4" width="8" height="18" rx="1" fill="#e74c3c" opacity="0.7"/><rect x="6" y="2" width="5" height="5" rx="2.5" fill="#e74c3c" opacity="0.5"/></svg></span>
+      <span class="header-logo-text">LIGHTHOUSE</span>
+      <span class="header-logo-powered">powered by shape<span class="shape-dot"></span></span>
+    </a>
+    <div class="header-breadcrumb">
+      <a href="#">MODEC do Brasil</a><span class="sep">></span><a href="index.html">MVBAC</a><span class="sep">></span><span class="current">MV30-HBG-1120B</span>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html">Overview</a><a href="#">Alarm</a><a href="#">Cases</a><a href="#">Asset Health</a><a href="#">Performance</a><a href="#">Flare</a><a href="mv-flow-water-all-mv.html" class="active">Charts</a>
+    </nav>
+    <div class="header-user">
+      <a href="#">Help</a><span class="user-name">Caio Dias</span><span>v</span>
+      <div class="app-grid"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <aside class="sidebar">
+      <div class="sidebar-search"><input type="text" placeholder="Search"><span class="search-icon">S</span><span class="close-btn">x</span></div>
+      <div class="sidebar-tree">
+        <a href="index.html" class="tree-item ship-root">MVBAC<span class="chevron open">v</span></a>
+        <div class="tree-children">
+          <a href="production-gas.html" class="tree-item sub-item">MVBAC - PRODUCTION - GAS<span class="chevron">v</span></a>
+          <a href="mv-flow-water-all-mv.html" class="tree-item sub-item">MVBAC - CHARTS - MV FLOW VS INJECTION</a>
+          <a href="mv30-hbg-1120b-categories.html" class="tree-item sub-item active">MVBAC - CHARTS - MV30-HBG-1120B</a>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main-content">
+      <div class="charts-page-wrap">
+        <div class="charts-page-header">
+          <div>
+            <h2>MV30-HBG-1120B Category Overview</h2>
+            <p>Single chart with all monitored categories for this tag</p>
+          </div>
+          <div class="charts-nav">
+            <a href="mv-flow-water-all-mv.html">All MVs</a>
+            <a href="mv30-hbg-1120b-categories.html" class="active">MV30-HBG-1120B</a>
+          </div>
+        </div>
+
+        <div class="chart-panel">
+          <div class="chart-panel-head">
+            <h3>Category Values - MV30-HBG-1120B</h3>
+            <span class="unit">Normalized Index</span>
+          </div>
+          <div class="chart-panel-canvas"><canvas id="mv30CategoryChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+Chart.defaults.color = "#6b7280";
+Chart.defaults.borderColor = "#2a2d35";
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.animation.duration = 450;
+
+const categoryLabels = [
+  "Oil Flow",
+  "Water Injection",
+  "Gas Injection",
+  "Gas Lift",
+  "Produced Water",
+  "Flare Gas",
+  "Suction Pressure",
+  "Discharge Pressure"
+];
+
+const categoryValues = [88, 73, 82, 76, 69, 31, 79, 84];
+
+new Chart(document.getElementById("mv30CategoryChart"), {
+  type: "radar",
+  data: {
+    labels: categoryLabels,
+    datasets: [
+      {
+        label: "MV30-HBG-1120B",
+        data: categoryValues,
+        borderColor: "#e67e22",
+        backgroundColor: "rgba(230, 126, 34, 0.22)",
+        pointBackgroundColor: "#e67e22",
+        pointBorderColor: "#f3f4f6",
+        pointRadius: 3,
+        pointHoverRadius: 4,
+        borderWidth: 2
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "top",
+        labels: { color: "#d1d5db" }
+      }
+    },
+    scales: {
+      r: {
+        min: 0,
+        max: 100,
+        ticks: {
+          stepSize: 20,
+          color: "#9ca3af",
+          backdropColor: "transparent"
+        },
+        grid: { color: "#2a2d35" },
+        angleLines: { color: "#2a2d35" },
+        pointLabels: { color: "#d1d5db", font: { size: 11 } }
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>

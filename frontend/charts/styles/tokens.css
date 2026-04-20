@@ -1,0 +1,74 @@
+﻿:root {
+  --font-display: "Nunito", "Segoe UI", sans-serif;
+  --font-body: "Work Sans", "Segoe UI", sans-serif;
+
+  --surface-0: #f3f0e9;
+  --surface-1: #ebe5d8;
+  --surface-2: #f8f6f1;
+  --surface-3: #ffffff;
+
+  --ink-0: #1e2a32;
+  --ink-1: #2f3f4a;
+  --ink-2: #5f6b74;
+  --ink-3: #8b9298;
+
+  --accent-blue: #2a6f97;
+  --accent-teal: #188b84;
+  --accent-orange: #ce7c3a;
+  --accent-red: #b84b43;
+  --accent-green: #3d8f5d;
+
+  --border-soft: #d5cec1;
+  --border-strong: #b8ae9f;
+  --focus-ring: #3a7ca5;
+
+  --chart-bg: #fbfaf7;
+  --chart-grid: #e5dfd3;
+  --chart-axis: #7c838a;
+  --chart-line-1: #2a6f97;
+  --chart-line-2: #188b84;
+  --chart-line-3: #ce7c3a;
+  --chart-line-4: #b84b43;
+  --chart-line-5: #3d8f5d;
+
+  --shadow-soft: 0 8px 24px rgba(38, 42, 46, 0.08);
+  --shadow-floating: 0 20px 45px rgba(22, 28, 32, 0.22);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 22px;
+  --text-xl: 30px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background:
+    radial-gradient(circle at 15% 10%, rgba(42, 111, 151, 0.09), transparent 24%),
+    radial-gradient(circle at 78% 0%, rgba(206, 124, 58, 0.1), transparent 28%),
+    var(--surface-0);
+  color: var(--ink-0);
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}

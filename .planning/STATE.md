@@ -1,0 +1,65 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase: 6.2.1
+current_phase_name: sidebar-scroll-stability-and-non-disruptive-chart-loading-ux
+status: executing
+stopped_at: Phase 2.2 executed; next step is human browser verification then transition planning for Phase 3
+last_updated: "2026-04-20T02:29:03.031Z"
+last_activity: 2026-04-20
+progress:
+  total_phases: 11
+  completed_phases: 11
+  total_plans: 44
+  completed_plans: 44
+  percent: 100
+---
+
+# Project State
+
+## Project Reference
+
+See: .planning/PROJECT.md (updated 2026-04-13)
+
+**Core value:** Users can quickly spot operational deviations and act on them without digging through decorative or low-signal UI.
+**Current focus:** Phase 6.2.1 — sidebar-scroll-stability-and-non-disruptive-chart-loading-ux
+
+## Current Position
+
+**Current Phase:** 6.2.1
+**Current Phase Name:** sidebar-scroll-stability-and-non-disruptive-chart-loading-ux
+Phase: 6.2.1 (sidebar-scroll-stability-and-non-disruptive-chart-loading-ux) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 6.2.1
+Last activity: 2026-04-20
+**Last Activity Description:** v1.0 milestone completed and archived
+
+Progress: [#######...] 70%
+
+## Accumulated Context
+
+### Decisions
+
+- Phase 1 now guarantees at least one pre-saved chart renders live API data.
+- Charts presets are backend-seeded and frontend-hydrated from `/api/v1/charts/pages`.
+- Attribute-targeted timeseries endpoint is the deterministic data path for preset charts.
+- Phase 2 Overview charts now use centralized metadata contracts for units/labels and rendering.
+- Phase 2 alarm triage is deterministic via severity/occurrence/recency ordering and id-based modal routing.
+- Phase 2.1 scope is locked: case-insensitive substring asset search (cap 50), timeseries-only attribute selection, checkbox multi-select, multi-asset chart plotting, and per-chart attribute tag editing with red `x` removal control.
+- Phase 2.1 implementation now includes selector modal, backend asset search endpoint, selectedTags chart state, and per-tag red `x` removal.
+- Phase 2.2 is now required before Production Gas to harden query ergonomics and chart-page performance from first-user testing.
+- Phase 2.1 remains in verifying state until final human browser confirmation is logged.
+- Phase 2.2 implementation now enforces submit-only asset search, asset-first attribute queries, 6h default sampling, timeseries cache, and hover Actions -> Add new tags flow.
+
+### Blockers/Concerns
+
+- Phase 1 verification remains `human_needed` for final browser-level interaction confirmation.
+- Phase 2 verification remains `human_needed` for final visual interaction confirmation in browser.
+- Phase 1 and Phase 2 still contain pending manual browser verification debt.
+
+## Session Continuity
+
+Last session: 2026-04-13
+Stopped at: Phase 2.2 executed; next step is human browser verification then transition planning for Phase 3
+Resume file: None

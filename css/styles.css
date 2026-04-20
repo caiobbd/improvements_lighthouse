@@ -189,18 +189,27 @@ html, body {
 .alarm-card {
   background: #1a1d24; border: 1px solid #2a2d35; border-radius: 6px;
   padding: 12px 14px; margin-bottom: 10px; border-left: 4px solid #6b7280;
-  cursor: pointer; transition: background 0.15s, border-color 0.15s;
+  cursor: pointer; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 .alarm-card:hover { background: #1e2128; }
-.alarm-card.severity-critical { border-left-color: #e74c3c; }
-.alarm-card.severity-high { border-left-color: #e67e22; }
+.alarm-card.severity-critical { border-left-color: #e74c3c; box-shadow: inset 0 0 0 1px rgba(231, 76, 60, 0.22); }
+.alarm-card.severity-high { border-left-color: #e67e22; box-shadow: inset 0 0 0 1px rgba(230, 126, 34, 0.18); }
 .alarm-card.severity-medium { border-left-color: #f1c40f; }
+.alarm-card.severity-critical:hover { box-shadow: inset 0 0 0 1px rgba(231, 76, 60, 0.4); }
+.alarm-card.severity-high:hover { box-shadow: inset 0 0 0 1px rgba(230, 126, 34, 0.34); }
 .alarm-card .alarm-asset { font-size: 12px; font-weight: 600; color: #ffffff; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
 .alarm-card .alarm-model { font-size: 11px; color: #9ca3af; margin-bottom: 10px; }
 .alarm-card .alarm-meta { display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #6b7280; }
 .alarm-card .alarm-duration { color: #9ca3af; }
 .alarm-card .alarm-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
 .alarm-card .alarm-occurrences { font-size: 10px; color: #6b7280; }
+.alarm-card .alarm-priority {
+  font-size: 10px;
+  color: #3db9cf;
+  border: 1px solid rgba(61, 185, 207, 0.38);
+  border-radius: 8px;
+  padding: 1px 6px;
+}
 .alarm-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; border-radius: 9px; font-size: 10px; font-weight: 600; padding: 0 6px; color: #ffffff; }
 .alarm-badge.badge-critical { background: #e74c3c; }
 .alarm-badge.badge-high { background: #e67e22; }

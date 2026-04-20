@@ -1,0 +1,121 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lighthouse | Charts</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Work+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles/tokens.css?v=20260416-2" />
+    <link rel="stylesheet" href="./styles/charts-page.css?v=20260419-1" />
+    <link rel="stylesheet" href="./styles/components.css?v=20260416-2" />
+  </head>
+  <body>
+    <main class="charts-page-container" id="charts-page-root">
+      <nav class="charts-breadcrumbs" aria-label="Breadcrumb">
+        <span class="eyebrow">Lighthouse</span>
+        <span aria-hidden="true">/</span>
+        <span class="eyebrow">Analytics</span>
+        <span aria-hidden="true">/</span>
+        <span class="eyebrow">Charts Tab</span>
+      </nav>
+
+      <header class="charts-header" aria-label="Charts workspace header">
+        <div class="charts-title-group">
+          <p class="eyebrow">Lighthouse</p>
+          <h1>Charts</h1>
+          <p class="charts-subtitle">
+            Visualize critical asset telemetry with reusable pages and minimalist chart cards.
+          </p>
+          <p class="charts-subtitle">
+            Start with preset pages, then build custom compositions for each analysis workflow.
+          </p>
+        </div>
+        <div class="charts-meta">
+          <p class="meta-label">Environment</p>
+          <p class="meta-value" id="env-label">Local Prototype</p>
+          <p class="meta-label">Tab</p>
+          <p class="meta-value">Charts</p>
+          <p class="meta-label">Backend Contract</p>
+          <p class="meta-value">FastAPI /api/v1/charts</p>
+        </div>
+      </header>
+
+      <aside id="charts-sidebars" class="charts-sidebars" aria-label="Equipment and sensors"></aside>
+      <section class="charts-workspace-layout" aria-label="Charts workspace">
+        <div class="charts-workspace-main">
+          <section class="charts-kpi-strip" aria-label="Workspace context">
+            <div class="control-group">
+              <span class="control-label">Page Mode</span>
+              <strong>Preset + Custom</strong>
+            </div>
+            <div class="control-group">
+              <span class="control-label">Chart Engine</span>
+              <strong>D3.js</strong>
+            </div>
+            <div class="control-group">
+              <span class="control-label">Data Source</span>
+              <strong>Workspace ProfilingV1</strong>
+            </div>
+          </section>
+
+          <section class="charts-surface" aria-label="Charts content shell">
+            <div class="surface-top-row">
+              <div class="tab-navigation" id="tab-navigation" aria-label="Page navigation"></div>
+            </div>
+
+            <div id="refresh-progress" class="refresh-progress hidden" aria-live="polite"></div>
+
+            <div class="surface-control-row">
+              <div id="page-controls" class="page-controls" aria-label="Page controls"></div>
+            </div>
+
+            <div id="alarm-details-row" class="alarm-details-row hidden" aria-live="polite"></div>
+
+            <div class="surface-body">
+              <div id="chart-grid" class="chart-grid" aria-live="polite"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <template id="empty-state-template">
+      <div class="empty-chart-state-container" role="status">
+        <div class="empty-state-icon" aria-hidden="true">+</div>
+        <p class="empty-chart-state-title">No charts in this page</p>
+        <p class="empty-chart-state-copy">
+          Add your first chart card to start exploring operational data in this workspace.
+        </p>
+      </div>
+    </template>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      window.__LIGHTHOUSE_CONFIG__ = {
+        apiBaseUrl:
+          params.get("apiBaseUrl") ||
+          window.localStorage.getItem("lighthouse.charts.apiBaseUrl") ||
+          "http://127.0.0.1:8001/api/v1/charts",
+      };
+    </script>
+    <script type="module">
+      import("./app.js?v=20260419-1").catch((error) => {
+        console.error("Charts app bootstrap failed", error);
+        const target = document.getElementById("chart-grid");
+        if (target) {
+          const detail = error?.stack || error?.message || String(error);
+          const message = document.createElement("div");
+          message.className = "chart-error";
+          message.textContent = `Failed to load charts application: ${detail}`;
+          target.innerHTML = "";
+          target.append(message);
+        }
+      });
+    </script>
+  </body>
+</html>
