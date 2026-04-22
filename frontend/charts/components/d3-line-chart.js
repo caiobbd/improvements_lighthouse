@@ -9,6 +9,10 @@ const MIN_Y_WINDOW = 1e-4;
 const WHEEL_ZOOM_IN_FACTOR = 0.85;
 const WHEEL_ZOOM_OUT_FACTOR = 1.15;
 const PADDING_FACTOR = 0.08;
+const POINTER_CLICK_TOLERANCE = 4;
+const PAN_ZONE_RATIO = 0.2;
+const PIN_LIMIT = 5;
+const PIN_HIT_RADIUS = 8;
 
 let d3ModulePromise = null;
 
@@ -205,6 +209,36 @@ function resolveFallbackXDomain(candidate = null) {
   return [start, end];
 }
 
+function normalizeTimestamp(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.valueOf())) return null;
+  return parsed.toISOString();
+}
+
+function normalizePinnedCursors(pins) {
+  const next = [];
+  const seen = new Set();
+  (Array.isArray(pins) ? pins : []).forEach((pin, index) => {
+    if (!pin || typeof pin !== "object") return;
+    const timestamp = normalizeTimestamp(pin.timestamp);
+    if (!timestamp) return;
+    const id = String(pin.id || `pin-${index + 1}`);
+    if (seen.has(id)) return;
+    seen.add(id);
+    next.push({ id, timestamp });
+  });
+  return next.slice(0, PIN_LIMIT);
+}
+
+function createPinId() {
+  return `pin-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function isPanZone(pointerY, innerHeight) {
+  return pointerY >= innerHeight * (1 - PAN_ZONE_RATIO) && pointerY <= innerHeight;
+}
+
 function renderEmpty(container, message) {
   clear(container);
   const state = document.createElement("div");
@@ -218,13 +252,15 @@ function renderEmpty(container, message) {
     autoScaleY() {},
     setPreviewXDomain() {},
     applyExternalXDomain() {},
+    setHoverTimestamp() {},
+    setPinnedCursors() {},
     handleWheelZoom() {
       return false;
     },
   };
 }
 
-function resolveGestureMode(event) {
+function resolveGestureMode(event, coords, innerHeight) {
   const ctrl = event.ctrlKey === true;
   const shift = event.shiftKey === true;
   const alt = event.altKey === true;
@@ -232,6 +268,7 @@ function resolveGestureMode(event) {
   if (shift) return "pan-x";
   if (ctrl) return "zoom-x";
   if (alt) return "zoom-y";
+  if (coords && isPanZone(coords.y, innerHeight)) return "pan-x";
   return "zoom-xy";
 }
 
@@ -327,11 +364,14 @@ function renderLineChartWithD3(d3, config) {
     normalizationEnabled = false,
     splitYAxisEnabled = false,
     previewXDomain = null,
+    cursorState = {},
     fallbackXDomain = null,
     emptyStateMessage = "No points available for this chart.",
     onInteractionStateChange = null,
     onSyncPreviewChange = null,
     onSyncCommit = null,
+    onHoverTimestampChange = null,
+    onPinnedCursorsChange = null,
   } = config;
 
   const parsedLines = parseLines(series, hiddenSeries);
@@ -390,6 +430,9 @@ function renderLineChartWithD3(d3, config) {
   const gridLayer = root.append("g").attr("class", "grid-lines");
   const alarmLayer = root.append("g").attr("class", "alarm-span-layer");
   const previewLayer = root.append("g").attr("class", "sync-preview-layer");
+  const cursorLayer = root.append("g").attr("class", "chart-cursor-layer");
+  const hoverLayer = cursorLayer.append("g").attr("class", "hover-cursor-layer");
+  const pinnedLayer = cursorLayer.append("g").attr("class", "pinned-cursor-layer");
   const linesLayer = root.append("g").attr("clip-path", `url(#${clipId})`);
   const splitAxisLayer = root.append("g").attr("class", "split-axis-layer");
   const yAxisLayer = root.append("g");
@@ -417,22 +460,15 @@ function renderLineChartWithD3(d3, config) {
   const tooltip = d3
     .select(container)
     .append("div")
+    .attr("class", "chart-hover-tooltip")
     .style("position", "absolute")
     .style("pointer-events", "none")
     .style("display", "none")
-    .style("padding", "6px 8px")
-    .style("border-radius", "6px")
-    .style("background", "rgba(26, 31, 36, 0.9)")
-    .style("color", "#f7f9fb")
-    .style("font-size", "11px")
-    .style("line-height", "1.35")
-    .style("max-width", "260px");
+    .style("max-width", "320px");
 
-  const focusDot = root.append("circle").attr("r", 4).style("display", "none");
-  const crosshair = root
+  const hoverLine = hoverLayer
     .append("line")
-    .attr("stroke", "#aeb6bc")
-    .attr("stroke-dasharray", "3,3")
+    .attr("class", "hover-cursor-line")
     .attr("y1", 0)
     .attr("y2", innerHeight)
     .style("display", "none");
@@ -466,6 +502,15 @@ function renderLineChartWithD3(d3, config) {
       cloneTimeDomain(previewXDomain) || cloneTimeDomain(interactionState.previewXDomain),
       fullXDomain,
     ) || null;
+  let hoverTimestamp =
+    normalizeTimestamp(cursorState?.hoverTimestamp) ||
+    normalizeTimestamp(interactionState?.hoverTimestamp) ||
+    null;
+  let pinnedCursors = normalizePinnedCursors(
+    cursorState?.pinnedCursors || interactionState?.pinnedCursors || [],
+  );
+  let pinLayouts = [];
+  let pointerInChart = false;
 
   let renderLines = hasSeries
     ? buildVisibleRenderLines(parsedLines, currentXDomain, normalizationEnabled)
@@ -490,11 +535,15 @@ function renderLineChartWithD3(d3, config) {
     interactionState.currentXDomain = toSerializableTimeDomain(currentXDomain);
     interactionState.currentYDomain = toSerializableNumericDomain(currentYDomain);
     interactionState.previewXDomain = toSerializableTimeDomain(previewDomain);
+    interactionState.hoverTimestamp = hoverTimestamp;
+    interactionState.pinnedCursors = pinnedCursors.map((pin) => ({ ...pin }));
     if (typeof onInteractionStateChange === "function") {
       onInteractionStateChange({
         xDomain: interactionState.currentXDomain,
         yDomain: interactionState.currentYDomain,
         previewXDomain: interactionState.previewXDomain,
+        hoverTimestamp: interactionState.hoverTimestamp,
+        pinnedCursors: interactionState.pinnedCursors,
       });
     }
   }
@@ -637,10 +686,14 @@ function renderLineChartWithD3(d3, config) {
     renderLinesLayer();
     renderAlarmSpan();
     renderPreviewSpan();
+    renderHoverCursor();
+    renderPinnedCursors();
     persistInteractionState();
   }
 
-  function getNearestPoint(mouseX) {
+  const formatUtcTimestamp = d3.utcFormat("%m/%d/%Y %H:%M:%S UTC");
+
+  function getNearestPointAtX(mouseX) {
     const hoveredDate = xScale.invert(mouseX);
     let nearest = null;
     renderLines.forEach((line) => {
@@ -661,34 +714,254 @@ function renderLineChartWithD3(d3, config) {
     return nearest;
   }
 
+  function findNearestTimestampAtX(mouseX) {
+    const nearest = getNearestPointAtX(mouseX);
+    if (!nearest?.point?.timestamp) {
+      return xScale.invert(mouseX).toISOString();
+    }
+    return nearest.point.timestamp.toISOString();
+  }
+
+  function getValuesForTimestamp(timestampIso) {
+    const timestamp = new Date(timestampIso);
+    if (Number.isNaN(timestamp.valueOf())) return [];
+
+    return renderLines
+      .map((line) => {
+        const points = line.points;
+        if (!points.length) return null;
+        const bisect = d3.bisector((point) => point.timestamp).center;
+        const index = bisect(points, timestamp);
+        const point = points[Math.max(0, Math.min(index, points.length - 1))];
+        if (!point) return null;
+        return {
+          key: line.key,
+          label: line.name || line.key,
+          color: line.color || "#2a6f97",
+          value: point.value,
+          originalValue: point.originalValue,
+          normalizedValue: point.normalizedValue,
+          timestamp: point.timestamp.toISOString(),
+        };
+      })
+      .filter(Boolean);
+  }
+
   function hideTooltip() {
-    focusDot.style("display", "none");
-    crosshair.style("display", "none");
     tooltip.style("display", "none");
   }
 
-  function showTooltip(event) {
-    const [mouseX] = d3.pointer(event, interactionLayer.node());
-    const nearest = getNearestPoint(mouseX);
-    if (!nearest) return;
-    const yScale = getScaleForLine(nearest.line);
-    const x = xScale(nearest.point.timestamp);
-    const y = yScale(nearest.point.value);
+  function renderHoverTooltip(event, timestampIso) {
+    if (!pointerInChart || !timestampIso) {
+      hideTooltip();
+      return;
+    }
+    const values = getValuesForTimestamp(timestampIso);
+    const [mouseX, mouseY] = d3.pointer(event, interactionLayer.node());
+    const tooltipRows = values.length
+      ? values
+          .map(
+            (row) =>
+              `<div class="chart-hover-tooltip-row"><span style="color:${row.color}">${row.label}</span><strong>${formatValue(row.originalValue)}</strong></div>`,
+          )
+          .join("")
+      : '<div class="chart-hover-tooltip-row"><span>No visible traces</span></div>';
 
-    focusDot.attr("cx", x).attr("cy", y).attr("fill", nearest.line.color || "#2a6f97").style("display", "block");
-    crosshair.attr("x1", x).attr("x2", x).style("display", "block");
-
-    const norm = nearest.point.normalizedValue;
-    const valueRows = normalizationEnabled
-      ? `${formatValue(nearest.point.originalValue)} (orig)<br>${formatValue(norm)} (norm)`
-      : formatValue(nearest.point.originalValue);
     tooltip
       .style("display", "block")
-      .style("left", `${Math.min(width - 180, x + margin.left + 12)}px`)
-      .style("top", `${Math.max(8, y + margin.top - 28)}px`)
+      .style("left", `${Math.min(width - 250, mouseX + margin.left + 10)}px`)
+      .style("top", `${Math.max(8, mouseY + margin.top - 12)}px`)
       .html(
-        `<strong>${nearest.line.name}</strong><br>${d3.utcFormat("%Y-%m-%d %H:%M")(nearest.point.timestamp)}<br>${valueRows}`,
+        `<div class="chart-hover-tooltip-time">${formatUtcTimestamp(new Date(timestampIso))}</div>${tooltipRows}`,
       );
+  }
+
+  function renderHoverCursor() {
+    if (!hoverTimestamp) {
+      hoverLine.style("display", "none");
+      return;
+    }
+    const parsed = new Date(hoverTimestamp);
+    if (Number.isNaN(parsed.valueOf())) {
+      hoverLine.style("display", "none");
+      return;
+    }
+    const x = xScale(parsed);
+    if (!Number.isFinite(x) || x < 0 || x > innerWidth) {
+      hoverLine.style("display", "none");
+      return;
+    }
+    hoverLine.attr("x1", x).attr("x2", x).style("display", "block");
+  }
+
+  function renderPinnedCursors() {
+    pinLayouts = [];
+    pinnedLayer.selectAll("*").remove();
+    if (!pinnedCursors.length) return;
+
+    pinnedCursors.forEach((pin) => {
+      const timestamp = new Date(pin.timestamp);
+      if (Number.isNaN(timestamp.valueOf())) return;
+      const x = xScale(timestamp);
+      if (!Number.isFinite(x) || x < 0 || x > innerWidth) return;
+
+      const values = getValuesForTimestamp(pin.timestamp);
+      const headerText = formatUtcTimestamp(timestamp);
+      const valueTexts = values.map((row) => `${row.label}: ${formatValue(row.originalValue)}`);
+      const longest = Math.max(
+        headerText.length,
+        valueTexts.reduce((max, text) => Math.max(max, text.length), 0),
+      );
+      const boxWidth = clamp(longest * 6.3 + 18, 140, 360);
+      const headerHeight = 18;
+      const rowHeight = 14;
+      const valuesHeight = Math.max(18, values.length * rowHeight + 8);
+      const headerY = 2;
+      const valuesY = headerY + headerHeight + 2;
+      const boxLeft = clamp(x - boxWidth / 2, 0, innerWidth - boxWidth);
+
+      const group = pinnedLayer.append("g").attr("class", "pinned-cursor-group");
+
+      group
+        .append("line")
+        .attr("class", "pinned-cursor-line")
+        .attr("x1", x)
+        .attr("x2", x)
+        .attr("y1", 0)
+        .attr("y2", innerHeight);
+
+      group
+        .append("rect")
+        .attr("class", "pinned-cursor-header")
+        .attr("x", boxLeft)
+        .attr("y", headerY)
+        .attr("width", boxWidth)
+        .attr("height", headerHeight)
+        .attr("rx", 3)
+        .attr("ry", 3);
+
+      group
+        .append("text")
+        .attr("class", "pinned-cursor-header-text")
+        .attr("x", boxLeft + 6)
+        .attr("y", headerY + 12)
+        .text(headerText);
+
+      group
+        .append("rect")
+        .attr("class", "pinned-cursor-values")
+        .attr("x", boxLeft)
+        .attr("y", valuesY)
+        .attr("width", boxWidth)
+        .attr("height", valuesHeight)
+        .attr("rx", 3)
+        .attr("ry", 3);
+
+      if (values.length === 0) {
+        group
+          .append("text")
+          .attr("class", "pinned-cursor-empty")
+          .attr("x", boxLeft + 6)
+          .attr("y", valuesY + 12)
+          .text("No visible traces");
+      } else {
+        values.forEach((row, rowIndex) => {
+          group
+            .append("text")
+            .attr("class", "pinned-cursor-row")
+            .attr("x", boxLeft + 6)
+            .attr("y", valuesY + 12 + rowIndex * rowHeight)
+            .attr("fill", row.color)
+            .text(`${row.label}: ${formatValue(row.originalValue)}`);
+        });
+      }
+
+      pinLayouts.push({
+        id: pin.id,
+        x,
+        header: {
+          x: boxLeft,
+          y: headerY,
+          width: boxWidth,
+          height: headerHeight,
+        },
+      });
+    });
+  }
+
+  function findPinHitTarget(coords) {
+    const layout = pinLayouts.find((entry) => {
+      const inHeader =
+        coords.x >= entry.header.x &&
+        coords.x <= entry.header.x + entry.header.width &&
+        coords.y >= entry.header.y &&
+        coords.y <= entry.header.y + entry.header.height;
+      const nearLine = Math.abs(coords.x - entry.x) <= PIN_HIT_RADIUS;
+      return inHeader || nearLine;
+    });
+    return layout || null;
+  }
+
+  function applyPointerCursor(coords) {
+    if (gesture?.mode === "pin-drag") {
+      interactionLayer.style("cursor", "ew-resize");
+      return;
+    }
+    if (gesture?.mode === "pan-x") {
+      interactionLayer.style("cursor", "grabbing");
+      return;
+    }
+    if (!coords) {
+      interactionLayer.style("cursor", "crosshair");
+      return;
+    }
+    if (findPinHitTarget(coords)) {
+      interactionLayer.style("cursor", "ew-resize");
+      return;
+    }
+    if (isPanZone(coords.y, innerHeight)) {
+      interactionLayer.style("cursor", "grab");
+      return;
+    }
+    interactionLayer.style("cursor", "crosshair");
+  }
+
+  function applyPinnedCursorChange(nextPins) {
+    const normalized = normalizePinnedCursors(nextPins);
+    const canonical =
+      typeof onPinnedCursorsChange === "function" ? onPinnedCursorsChange(normalized) : normalized;
+    pinnedCursors = normalizePinnedCursors(canonical);
+    interactionState.pinnedCursors = pinnedCursors.map((pin) => ({ ...pin }));
+    persistInteractionState();
+    return pinnedCursors;
+  }
+
+  function addPinnedCursor(timestampIso) {
+    const timestamp = normalizeTimestamp(timestampIso);
+    if (!timestamp) return false;
+    if (pinnedCursors.length >= PIN_LIMIT) return false;
+    const nextPins = [...pinnedCursors, { id: createPinId(), timestamp }];
+    applyPinnedCursorChange(nextPins);
+    return true;
+  }
+
+  function updatePinnedCursor(pinId, timestampIso) {
+    const timestamp = normalizeTimestamp(timestampIso);
+    if (!timestamp) return;
+    const nextPins = pinnedCursors.map((pin) =>
+      pin.id === pinId
+        ? {
+            ...pin,
+            timestamp,
+          }
+        : pin,
+    );
+    applyPinnedCursorChange(nextPins);
+  }
+
+  function removePinnedCursor(pinId) {
+    const nextPins = pinnedCursors.filter((pin) => pin.id !== pinId);
+    applyPinnedCursorChange(nextPins);
   }
 
   let gesture = null;
@@ -742,20 +1015,39 @@ function renderLineChartWithD3(d3, config) {
   }
 
   function getEventCoordinates(event) {
-    const [x, y] = d3.pointer(event, interactionLayer.node());
+    const [rawX, rawY] = d3.pointer(event, interactionLayer.node());
     return {
-      x: clamp(x, 0, innerWidth),
-      y: clamp(y, 0, innerHeight),
+      rawX,
+      rawY,
+      x: clamp(rawX, 0, innerWidth),
+      y: clamp(rawY, 0, innerHeight),
     };
   }
 
   function onPointerDown(event) {
     if (event.button !== 0) return;
-    const mode = resolveGestureMode(event);
-    if (mode === "zoom-y" && (!hasSeries || splitMode || normalizationEnabled)) {
+    const coords = getEventCoordinates(event);
+    const pinTarget = findPinHitTarget(coords);
+    if (pinTarget) {
+      gesture = {
+        mode: "pin-drag",
+        pointerId: event.pointerId,
+        pinId: pinTarget.id,
+        startX: coords.x,
+        startY: coords.y,
+        currentX: coords.x,
+        currentY: coords.y,
+        rawX: coords.rawX,
+        hasMoved: false,
+      };
+      interactionLayer.node().setPointerCapture(event.pointerId);
+      hideTooltip();
+      applyPointerCursor(coords);
       return;
     }
-    const coords = getEventCoordinates(event);
+
+    const mode = resolveGestureMode(event, coords, innerHeight);
+    if (mode === "zoom-y" && (!hasSeries || splitMode || normalizationEnabled)) return;
     gesture = {
       mode,
       pointerId: event.pointerId,
@@ -763,27 +1055,68 @@ function renderLineChartWithD3(d3, config) {
       startY: coords.y,
       currentX: coords.x,
       currentY: coords.y,
+      rawX: coords.rawX,
+      rawY: coords.rawY,
       originXDomain: cloneTimeDomain(currentXDomain),
       originYDomain: cloneNumericDomain(currentYDomain),
+      hasMoved: false,
+      allowPinOnClick: !event.ctrlKey && !event.altKey && !event.shiftKey,
     };
     interactionLayer.node().setPointerCapture(event.pointerId);
-    if (mode === "pan-x") {
-      interactionLayer.style("cursor", "grabbing");
-    }
-    if (mode !== "pan-x") {
-      updateMarqueeRect(coords.x, coords.y, coords.x, coords.y);
-    }
     hideTooltip();
+    applyPointerCursor(coords);
   }
 
   function onPointerMove(event) {
     if (!gesture || event.pointerId !== gesture.pointerId) {
-      showTooltip(event);
+      pointerInChart = true;
+      const coords = getEventCoordinates(event);
+      applyPointerCursor(coords);
+      const timestamp = findNearestTimestampAtX(coords.x);
+      hoverTimestamp = timestamp;
+      interactionState.hoverTimestamp = timestamp;
+      if (typeof onHoverTimestampChange === "function") {
+        onHoverTimestampChange(timestamp);
+      }
+      renderHoverTooltip(event, timestamp);
+      renderHoverCursor();
+      persistInteractionState();
       return;
     }
     const coords = getEventCoordinates(event);
     gesture.currentX = coords.x;
     gesture.currentY = coords.y;
+    gesture.rawX = coords.rawX;
+    gesture.rawY = coords.rawY;
+
+    if (!gesture.hasMoved) {
+      const distance = Math.hypot(coords.x - gesture.startX, coords.y - gesture.startY);
+      if (distance >= POINTER_CLICK_TOLERANCE) {
+        gesture.hasMoved = true;
+        if (gesture.mode !== "pan-x" && gesture.mode !== "pin-drag") {
+          updateMarqueeRect(gesture.startX, gesture.startY, gesture.startX, gesture.startY);
+        }
+      }
+    }
+
+    if (!gesture.hasMoved && gesture.mode !== "pin-drag") {
+      return;
+    }
+
+    if (gesture.mode === "pin-drag") {
+      if (coords.rawX < 0 || coords.rawX > innerWidth) {
+        interactionLayer.node().releasePointerCapture(gesture.pointerId);
+        removePinnedCursor(gesture.pinId);
+        gesture = null;
+        interactionLayer.style("cursor", "crosshair");
+        renderAll();
+        return;
+      }
+      const timestamp = findNearestTimestampAtX(coords.x);
+      updatePinnedCursor(gesture.pinId, timestamp);
+      renderAll();
+      return;
+    }
 
     if (gesture.mode === "pan-x") {
       const dx = coords.x - gesture.startX;
@@ -797,6 +1130,7 @@ function renderLineChartWithD3(d3, config) {
       ];
       currentXDomain = clampTimeDomain(next, fullXDomain) || gesture.originXDomain;
       scheduleRender();
+      applyPointerCursor(coords);
       return;
     }
 
@@ -819,7 +1153,10 @@ function renderLineChartWithD3(d3, config) {
         onSyncPreviewChange(toSerializableTimeDomain(previewDomain));
       }
       scheduleRender();
+      applyPointerCursor(coords);
+      return;
     }
+    applyPointerCursor(coords);
   }
 
   function onPointerUp(event) {
@@ -830,6 +1167,24 @@ function renderLineChartWithD3(d3, config) {
     const startY = gesture.startY;
     const endX = gesture.currentX;
     const endY = gesture.currentY;
+
+    if (mode === "pin-drag") {
+      interactionLayer.node().releasePointerCapture(gesture.pointerId);
+      gesture = null;
+      applyPointerCursor(getEventCoordinates(event));
+      renderAll();
+      return;
+    }
+
+    if (!gesture.hasMoved && gesture.allowPinOnClick) {
+      addPinnedCursor(findNearestTimestampAtX(endX));
+      interactionLayer.node().releasePointerCapture(gesture.pointerId);
+      clearMarqueeRect();
+      gesture = null;
+      applyPointerCursor(getEventCoordinates(event));
+      renderAll();
+      return;
+    }
 
     if (mode === "sync-x") {
       applyZoomSelection(mode, startX, endX, startY, endY);
@@ -845,23 +1200,37 @@ function renderLineChartWithD3(d3, config) {
     }
 
     interactionLayer.node().releasePointerCapture(gesture.pointerId);
-    interactionLayer.style("cursor", "crosshair");
     clearMarqueeRect();
     gesture = null;
+    applyPointerCursor(getEventCoordinates(event));
     renderAll();
   }
 
   function onPointerCancel(event) {
     if (!gesture || event.pointerId !== gesture.pointerId) return;
     interactionLayer.node().releasePointerCapture(gesture.pointerId);
-    interactionLayer.style("cursor", "crosshair");
     clearMarqueeRect();
     if (typeof onSyncPreviewChange === "function") {
       onSyncPreviewChange(null);
     }
     previewDomain = null;
     gesture = null;
+    applyPointerCursor(getEventCoordinates(event));
     renderAll();
+  }
+
+  function onPointerLeave() {
+    pointerInChart = false;
+    hideTooltip();
+    if (gesture) return;
+    hoverTimestamp = null;
+    interactionState.hoverTimestamp = null;
+    if (typeof onHoverTimestampChange === "function") {
+      onHoverTimestampChange(null);
+    }
+    renderHoverCursor();
+    persistInteractionState();
+    interactionLayer.style("cursor", "crosshair");
   }
 
   function resetView() {
@@ -898,6 +1267,23 @@ function renderLineChartWithD3(d3, config) {
     persistInteractionState();
   }
 
+  function setHoverTimestamp(nextTimestamp) {
+    hoverTimestamp = normalizeTimestamp(nextTimestamp);
+    interactionState.hoverTimestamp = hoverTimestamp;
+    renderHoverCursor();
+    if (!pointerInChart) {
+      hideTooltip();
+    }
+    persistInteractionState();
+  }
+
+  function setPinnedCursors(nextPins) {
+    pinnedCursors = normalizePinnedCursors(nextPins);
+    interactionState.pinnedCursors = pinnedCursors.map((pin) => ({ ...pin }));
+    renderPinnedCursors();
+    persistInteractionState();
+  }
+
   function handleWheelZoom(event) {
     if (!event || (!event.ctrlKey && !event.altKey)) return false;
     if (event.ctrlKey && event.altKey) return false;
@@ -922,12 +1308,11 @@ function renderLineChartWithD3(d3, config) {
     return false;
   }
 
-  interactionLayer.on("mousemove", onPointerMove);
-  interactionLayer.on("mouseleave", hideTooltip);
   interactionLayer.on("pointerdown", onPointerDown);
   interactionLayer.on("pointermove", onPointerMove);
   interactionLayer.on("pointerup", onPointerUp);
   interactionLayer.on("pointercancel", onPointerCancel);
+  interactionLayer.on("pointerleave", onPointerLeave);
 
   renderAll();
 
@@ -951,6 +1336,8 @@ function renderLineChartWithD3(d3, config) {
     autoScaleY,
     setPreviewXDomain,
     applyExternalXDomain,
+    setHoverTimestamp,
+    setPinnedCursors,
     handleWheelZoom,
   };
 }
@@ -965,6 +1352,8 @@ export function renderLineChart(config) {
       autoScaleY() {},
       setPreviewXDomain() {},
       applyExternalXDomain() {},
+      setHoverTimestamp() {},
+      setPinnedCursors() {},
       handleWheelZoom() {
         return false;
       },
@@ -978,6 +1367,8 @@ export function renderLineChart(config) {
     autoScaleY() {},
     setPreviewXDomain() {},
     applyExternalXDomain() {},
+    setHoverTimestamp() {},
+    setPinnedCursors() {},
     handleWheelZoom() {
       return false;
     },
@@ -1021,6 +1412,14 @@ export function renderLineChart(config) {
     applyExternalXDomain(domain) {
       if (disposed) return;
       activeHandle.applyExternalXDomain?.(domain);
+    },
+    setHoverTimestamp(timestamp) {
+      if (disposed) return;
+      activeHandle.setHoverTimestamp?.(timestamp);
+    },
+    setPinnedCursors(pins) {
+      if (disposed) return;
+      activeHandle.setPinnedCursors?.(pins);
     },
     handleWheelZoom(event) {
       if (disposed) return false;

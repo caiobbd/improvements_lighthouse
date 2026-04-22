@@ -271,3 +271,26 @@ Plans:
 - [x] 07-02: Implement frontend per-tag cache, in-flight dedupe, and incremental merge fetch pipeline.
 - [x] 07-03: Add backend timeseries TTL cache and optimize `/timeseries-batch` for repeated loads.
 - [x] 07-04: Add verification guardrails for non-destructive loading UX, latest-request handling, and performance deltas.
+
+### Phase 8: Cross-chart hover and pinned cursors
+
+**Goal:** Deliver synchronized hover and pinned time cursors across all visible charts so operators can compare trace values at the same timestamp without losing existing zoom/pan workflows.
+**Requirements**: CHT-74, CHT-75, CHT-76, CHT-77, CHT-78, CHT-79, CHT-80, CHT-81, CHT-82, CHT-83
+**Depends on:** Phase 7
+**UI hint**: yes
+**Success Criteria** (what must be TRUE):
+  1. User sees a synchronized hover line on every visible chart, while the active chart shows a transient hover tooltip.
+  2. Hover tooltip uses UTC timestamp and nearest-point values only (no interpolation), listing visible traces only.
+  3. User can create pinned cursors with single click up to a page-global cap of 5, and click-drag does not create pins.
+  4. Pinned cursors show opaque tooltips with timestamp header and color-matched value rows.
+  5. User can drag pinned cursors to reposition them, and dragging fully off left/right edge removes the cursor and frees a slot.
+  6. Hovering draggable cursor area shows horizontal move affordance (`ew-resize`).
+  7. Bottom 20% plot band (above x-axis) acts as pan zone with hand cursor and drag-to-pan equivalent to `Shift+drag`.
+  8. `Reset Zoom` and `Reset Zoom All Plots` keep pinned cursors in place while only resetting domains.
+**Plans:** 4 plans
+
+Plans:
+- [ ] 08-01: Add page-global cursor state and interaction arbitration (click vs drag) across chart sync bus.
+- [ ] 08-02: Implement synchronized hover line plus transient/pinned tooltip rendering with UTC nearest-point values.
+- [ ] 08-03: Implement pinned cursor drag-reposition/removal and bottom-band pan ergonomics with cursor affordances.
+- [ ] 08-04: Integrate with reset/sync flows, harden regressions, and document cursor interactions.

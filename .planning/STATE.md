@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 6.2.1
-current_phase_name: sidebar-scroll-stability-and-non-disruptive-chart-loading-ux
+current_phase: 8
+current_phase_name: cross-chart-hover-and-pinned-cursors
 status: executing
 stopped_at: Phase 2.2 executed; next step is human browser verification then transition planning for Phase 3
-last_updated: "2026-04-22T12:36:30Z"
-last_activity: 2026-04-22
+last_updated: "2026-04-22T14:22:26.636Z"
+last_activity: 2026-04-22 -- Phase 8 execution started
 progress:
-  total_phases: 11
+  total_phases: 13
   completed_phases: 11
-  total_plans: 44
+  total_plans: 52
   completed_plans: 44
-  percent: 100
+  percent: 85
 ---
 
 # Project State
@@ -23,17 +23,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Users can quickly spot operational deviations and act on them without digging through decorative or low-signal UI.
-**Current focus:** Phase 6.2.1 — sidebar-scroll-stability-and-non-disruptive-chart-loading-ux
+**Current focus:** Phase 8 — cross-chart-hover-and-pinned-cursors
 
 ## Current Position
 
-**Current Phase:** 6.2.1
-**Current Phase Name:** sidebar-scroll-stability-and-non-disruptive-chart-loading-ux
-Phase: 6.2.1 (sidebar-scroll-stability-and-non-disruptive-chart-loading-ux) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 6.2.1
-Last activity: 2026-04-22
-**Last Activity Description:** Completed quick task 260422-d95 (explicit zoom reset actions and docs update)
+**Current Phase:** 8
+**Current Phase Name:** cross-chart-hover-and-pinned-cursors
+Phase: 8 (cross-chart-hover-and-pinned-cursors) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 8
+Last activity: 2026-04-22 -- Phase 8 execution started
+**Last Activity Description:** Phase 8 execution started
 
 Progress: [#######...] 70%
 

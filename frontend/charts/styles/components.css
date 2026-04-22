@@ -1318,6 +1318,82 @@
   pointer-events: none;
 }
 
+.hover-cursor-line {
+  stroke: rgba(245, 248, 252, 0.88);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  pointer-events: none;
+}
+
+.pinned-cursor-line {
+  stroke: rgba(245, 248, 252, 0.9);
+  stroke-width: 1.1;
+  pointer-events: none;
+}
+
+.pinned-cursor-header {
+  fill: rgba(19, 24, 29, 0.96);
+  stroke: rgba(201, 194, 182, 0.65);
+  stroke-width: 1;
+  cursor: ew-resize;
+}
+
+.pinned-cursor-header-text {
+  fill: #f4f7fa;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+.pinned-cursor-values {
+  fill: rgba(19, 24, 29, 0.9);
+  stroke: rgba(201, 194, 182, 0.5);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.pinned-cursor-row,
+.pinned-cursor-empty {
+  font-size: 10px;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+.pinned-cursor-empty {
+  fill: #f4f7fa;
+}
+
+.chart-hover-tooltip {
+  border: 1px solid rgba(201, 194, 182, 0.5);
+  border-radius: 6px;
+  background: rgba(19, 24, 29, 0.76);
+  color: #f4f7fa;
+  font-size: 10px;
+  line-height: 1.35;
+  padding: 6px 8px;
+  box-shadow: var(--shadow-soft);
+}
+
+.chart-hover-tooltip-time {
+  font-weight: 700;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.chart-hover-tooltip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.chart-hover-tooltip-row strong {
+  color: #f4f7fa;
+  font-weight: 700;
+}
+
 .charts-context-menu {
   position: fixed;
   z-index: 90;

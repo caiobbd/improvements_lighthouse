@@ -412,9 +412,12 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
     <p>Ctrl + Drag: Zoom X</p>
     <p>Alt + Drag: Zoom Y</p>
     <p>Shift + Drag: Pan X</p>
+    <p>Bottom 20% + Drag: Pan X</p>
     <p>Ctrl + Wheel: Zoom X</p>
     <p>Alt + Wheel: Zoom Y</p>
     <p>Ctrl + Shift + Drag: Sync X zoom (all charts)</p>
+    <p>Click: Pin cursor (max 5 per page)</p>
+    <p>Drag pinned cursor off edge: Remove pin</p>
     <p>Use Actions menu for reset commands</p>
   `;
   helpWrap.append(helpButton, helpTooltip);
@@ -461,6 +464,18 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
     previewXDomain: Array.isArray(cachedRuntime?.interactionState?.previewXDomain)
       ? cloneForRuntime(cachedRuntime.interactionState.previewXDomain)
       : null,
+    hoverTimestamp:
+      typeof cachedRuntime?.interactionState?.hoverTimestamp === "string"
+        ? cachedRuntime.interactionState.hoverTimestamp
+        : null,
+    pinnedCursors: Array.isArray(cachedRuntime?.interactionState?.pinnedCursors)
+      ? cachedRuntime.interactionState.pinnedCursors
+          .map((pin) => ({
+            id: String(pin?.id || ""),
+            timestamp: String(pin?.timestamp || ""),
+          }))
+          .filter((pin) => pin.id && pin.timestamp)
+      : [],
   };
 
   function persistRuntimeCache() {
@@ -476,6 +491,8 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
           ? cloneForRuntime(interactionState.currentYDomain)
           : null,
         previewXDomain: toSerializableDomain(interactionState.previewXDomain),
+        hoverTimestamp: interactionState.hoverTimestamp || null,
+        pinnedCursors: interactionState.pinnedCursors.map((pin) => ({ ...pin })),
       },
     });
   }
@@ -599,6 +616,22 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
             chartRenderHandle?.resetView?.();
             persistRuntimeCache();
           },
+          setHoverTimestamp(timestamp) {
+            interactionState.hoverTimestamp = typeof timestamp === "string" ? timestamp : null;
+            chartRenderHandle?.setHoverTimestamp?.(interactionState.hoverTimestamp);
+            persistRuntimeCache();
+          },
+          setPinnedCursors(pins) {
+            interactionState.pinnedCursors = (Array.isArray(pins) ? pins : [])
+              .map((pin) => ({
+                id: String(pin?.id || ""),
+                timestamp: String(pin?.timestamp || ""),
+              }))
+              .filter((pin) => pin.id && pin.timestamp)
+              .slice(0, 5);
+            chartRenderHandle?.setPinnedCursors?.(interactionState.pinnedCursors);
+            persistRuntimeCache();
+          },
         })
       : () => {};
 
@@ -691,6 +724,10 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
       emptyStateMessage: getEmptyStateMessage(),
       normalizationEnabled: chart.normalizationEnabled === true,
       splitYAxisEnabled: chart.splitYAxisEnabled === true,
+      cursorState: {
+        hoverTimestamp: interactionState.hoverTimestamp,
+        pinnedCursors: interactionState.pinnedCursors,
+      },
       onInteractionStateChange: (nextState) => {
         if (nextState?.xDomain) interactionState.currentXDomain = nextState.xDomain;
         if (nextState?.yDomain) interactionState.currentYDomain = nextState.yDomain;
@@ -713,9 +750,38 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
         syncBus?.commitXDomain?.(chart.id, range);
         persistRuntimeCache();
       },
+      onHoverTimestampChange: (timestamp) => {
+        interactionState.hoverTimestamp =
+          typeof timestamp === "string" && timestamp ? timestamp : null;
+        if (interactionState.hoverTimestamp) {
+          syncBus?.setHoverTimestamp?.(chart.id, interactionState.hoverTimestamp);
+        } else {
+          syncBus?.clearHoverTimestamp?.(chart.id);
+        }
+        persistRuntimeCache();
+      },
+      onPinnedCursorsChange: (pins) => {
+        const normalized = (Array.isArray(pins) ? pins : [])
+          .map((pin) => ({
+            id: String(pin?.id || ""),
+            timestamp: String(pin?.timestamp || ""),
+          }))
+          .filter((pin) => pin.id && pin.timestamp)
+          .slice(0, 5);
+        const canonical = syncBus?.setPinnedCursors?.(chart.id, normalized) || normalized;
+        interactionState.pinnedCursors = canonical;
+        persistRuntimeCache();
+        return canonical;
+      },
     });
     if (interactionState.previewXDomain) {
       chartRenderHandle.setPreviewXDomain?.(interactionState.previewXDomain);
+    }
+    if (interactionState.hoverTimestamp) {
+      chartRenderHandle.setHoverTimestamp?.(interactionState.hoverTimestamp);
+    }
+    if (interactionState.pinnedCursors.length > 0) {
+      chartRenderHandle.setPinnedCursors?.(interactionState.pinnedCursors);
     }
     renderYAutoScaleButton();
     ensureLoadingOverlay();

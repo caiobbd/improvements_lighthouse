@@ -5,11 +5,52 @@ const gridRuntimeByContainer = new WeakMap();
 
 function createSyncBus() {
   const handlers = new Map();
+  const cursorState = {
+    hoverTimestamp: null,
+    pinnedCursors: [],
+  };
+
+  function normalizeTimestamp(value) {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.valueOf())) return null;
+    return parsed.toISOString();
+  }
+
+  function normalizePinnedCursors(pins) {
+    const next = [];
+    const seen = new Set();
+    (Array.isArray(pins) ? pins : []).forEach((pin, index) => {
+      if (!pin || typeof pin !== "object") return;
+      const timestamp = normalizeTimestamp(pin.timestamp);
+      if (!timestamp) return;
+      const id = String(pin.id || `pin-${index + 1}`);
+      if (seen.has(id)) return;
+      seen.add(id);
+      next.push({ id, timestamp });
+    });
+    return next.slice(0, 5);
+  }
+
+  function clonePinnedCursors() {
+    return cursorState.pinnedCursors.map((pin) => ({ ...pin }));
+  }
+
+  function broadcastCursorState() {
+    const hoverTimestamp = cursorState.hoverTimestamp;
+    const pins = clonePinnedCursors();
+    handlers.forEach((handler) => {
+      handler.setHoverTimestamp?.(hoverTimestamp);
+      handler.setPinnedCursors?.(pins);
+    });
+  }
 
   return {
     register(chartId, handler) {
       if (!chartId || !handler) return () => {};
       handlers.set(chartId, handler);
+      handler.setHoverTimestamp?.(cursorState.hoverTimestamp);
+      handler.setPinnedCursors?.(clonePinnedCursors());
       return () => {
         handlers.delete(chartId);
       };
@@ -38,6 +79,42 @@ function createSyncBus() {
         handler.setPreviewXDomain?.(null);
         handler.resetView?.();
       });
+    },
+    setHoverTimestamp(sourceChartId, timestamp) {
+      cursorState.hoverTimestamp = normalizeTimestamp(timestamp);
+      handlers.forEach((handler, chartId) => {
+        if (chartId === sourceChartId) return;
+        handler.setHoverTimestamp?.(cursorState.hoverTimestamp);
+      });
+      return cursorState.hoverTimestamp;
+    },
+    clearHoverTimestamp(sourceChartId) {
+      cursorState.hoverTimestamp = null;
+      handlers.forEach((handler, chartId) => {
+        if (chartId === sourceChartId) return;
+        handler.setHoverTimestamp?.(null);
+      });
+      return null;
+    },
+    setPinnedCursors(sourceChartId, pins) {
+      cursorState.pinnedCursors = normalizePinnedCursors(pins);
+      const next = clonePinnedCursors();
+      handlers.forEach((handler, chartId) => {
+        if (chartId === sourceChartId) return;
+        handler.setPinnedCursors?.(next);
+      });
+      return next;
+    },
+    clearCursors() {
+      cursorState.hoverTimestamp = null;
+      cursorState.pinnedCursors = [];
+      broadcastCursorState();
+    },
+    getCursorState() {
+      return {
+        hoverTimestamp: cursorState.hoverTimestamp,
+        pinnedCursors: clonePinnedCursors(),
+      };
     },
   };
 }
