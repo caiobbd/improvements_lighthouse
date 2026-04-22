@@ -58,10 +58,13 @@ class ProfilingAdapter:
     _equipment_sensor_cache: dict[
         str, tuple[float, tuple[list[EquipmentSensorCategory], list[EquipmentSensor]]]
     ] = {}
+    _timeseries_cache_lock: Lock = Lock()
+    _timeseries_cache: dict[str, tuple[float, list[Series]]] = {}
     _intel_events_cache_lock: Lock = Lock()
     _intel_events_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
     _attribute_cache_ttl_seconds: int = 300
     _equipment_sensor_cache_ttl_seconds: int = 300
+    _timeseries_cache_ttl_seconds: int = 120
     _intel_events_cache_ttl_seconds: int = 300
 
     def __init__(self, workspace: Any | None = None) -> None:
@@ -164,6 +167,34 @@ class ProfilingAdapter:
         return (
             [category.model_copy(deep=True) for category in categories],
             [sensor.model_copy(deep=True) for sensor in sensors],
+        )
+
+    @staticmethod
+    def _clone_series_payload(series: list[Series]) -> list[Series]:
+        return [line.model_copy(deep=True) for line in series]
+
+    @classmethod
+    def _build_timeseries_cache_key(
+        cls,
+        *,
+        item_id: str,
+        attribute_key: str,
+        start_date: str,
+        end_date: str,
+        window: str,
+    ) -> str:
+        normalized_item_id = str(item_id or "").strip()
+        normalized_attribute_key = str(attribute_key or "").strip().lower()
+        normalized_start = str(start_date or "").strip()
+        normalized_end = str(end_date or "").strip()
+        normalized_window = str(window or "").strip().lower()
+        return cls._workspace_scoped_cache_key(
+            "timeseries:"
+            f"{normalized_item_id}:"
+            f"{normalized_attribute_key}:"
+            f"{normalized_start}:"
+            f"{normalized_end}:"
+            f"{normalized_window}"
         )
 
     @staticmethod
@@ -984,23 +1015,50 @@ class ProfilingAdapter:
                 f"Attribute '{selected.name}' does not have a timeseries reference."
             )
 
+        normalized_item_id = str(item_id or "").strip()
+        attribute_key = (
+            str(selected.id or "").strip()
+            or str(selected.reference or "").strip()
+            or str(selected.name or "").strip().lower()
+        )
+        cache_key = self._build_timeseries_cache_key(
+            item_id=normalized_item_id,
+            attribute_key=attribute_key,
+            start_date=start_date,
+            end_date=end_date,
+            window=window,
+        )
+        with self._timeseries_cache_lock:
+            cached = self._timeseries_cache.get(cache_key)
+            if cached and self._is_cache_entry_fresh(
+                cached_at=cached[0], ttl_seconds=self._timeseries_cache_ttl_seconds
+            ):
+                return self._clone_series_payload(cached[1])
+
         try:
             frame = self.workspace.get_item_time_series(
-                item_id=item_id,
+                item_id=normalized_item_id,
                 start_date=start_date,
                 end_date=end_date,
                 window=window,
                 tags=[selected.reference],
                 fill_func="PREV",
             )
-            if selected.reference in frame.columns:
+            if frame is not None and selected.reference in frame.columns:
                 frame = frame.rename(
                     columns={selected.reference: f"{selected.name} [{selected.reference}]"}
                 )
-            return self._normalize_timeseries(frame)
+            normalized_series = self._normalize_timeseries(frame)
+            with self._timeseries_cache_lock:
+                self._timeseries_cache[cache_key] = (
+                    time.monotonic(),
+                    self._clone_series_payload(normalized_series),
+                )
+            return self._clone_series_payload(normalized_series)
         except Exception as exc:
             raise ProfilingAdapterError(
-                f"Failed to fetch timeseries for item '{item_id}' and attribute '{selected.name}': {exc}"
+                "Failed to fetch timeseries for item "
+                f"'{normalized_item_id}' and attribute '{selected.name}': {exc}"
             ) from exc
 
     def get_timeseries(

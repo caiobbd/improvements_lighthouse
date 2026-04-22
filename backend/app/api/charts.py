@@ -83,6 +83,18 @@ def _resolve_effective_window(window: str | None, start_date: date, end_date: da
     return "6h"
 
 
+def _batch_tag_request_key(
+    *,
+    item_id: str,
+    attribute_id: str | None,
+    attribute_name: str | None,
+) -> str:
+    normalized_item_id = str(item_id or "").strip()
+    normalized_attribute_id = str(attribute_id or "").strip()
+    normalized_attribute_name = str(attribute_name or "").strip().lower()
+    return f"{normalized_item_id}|{normalized_attribute_id}|{normalized_attribute_name}"
+
+
 def _rank_attribute_name(name: str) -> int:
     lowered = name.strip().lower()
     for index, token in enumerate(ATTRIBUTE_NAME_PREFERENCES):
@@ -696,6 +708,7 @@ def get_timeseries_batch(
 
     resolved_tags: list[TimeSeriesBatchTag] = []
     warnings: list[str] = []
+    pending_requests: list[dict[str, str | None]] = []
 
     for index, entry in enumerate(parsed_tags, start=1):
         if not isinstance(entry, dict):
@@ -727,38 +740,56 @@ def get_timeseries_batch(
             )
             continue
 
+        pending_requests.append(
+            {
+                "tag_key": tag_key,
+                "asset_name": asset_name,
+                "item_id": item_id,
+                "attribute_id": attribute_id,
+                "attribute_name": attribute_name,
+                "label": label,
+                "request_key": _batch_tag_request_key(
+                    item_id=item_id,
+                    attribute_id=attribute_id,
+                    attribute_name=attribute_name,
+                ),
+            }
+        )
+
+    fetch_results: dict[str, tuple[list, str | None]] = {}
+    for request in pending_requests:
+        request_key = str(request["request_key"] or "")
+        if request_key in fetch_results:
+            continue
+
         try:
             series = adapter.get_timeseries_from_attribute(
-                item_id=item_id,
+                item_id=str(request["item_id"] or ""),
                 start_date=safe_start.isoformat(),
                 end_date=safe_end.isoformat(),
                 window=effective_window,
-                attribute_id=attribute_id,
-                attribute_name=attribute_name,
+                attribute_id=str(request["attribute_id"] or "") or None,
+                attribute_name=str(request["attribute_name"] or "") or None,
             )
-            resolved_tags.append(
-                TimeSeriesBatchTag(
-                    tag_key=tag_key,
-                    asset_name=asset_name,
-                    item_id=item_id,
-                    attribute_id=attribute_id,
-                    attribute_name=attribute_name,
-                    label=label,
-                    series=series,
-                )
-            )
+            fetch_results[request_key] = (series, None)
         except (UnknownAssetError, WorkspaceUnavailableError, ProfilingAdapterError) as exc:
-            resolved_tags.append(
-                TimeSeriesBatchTag(
-                    tag_key=tag_key,
-                    asset_name=asset_name,
-                    item_id=item_id,
-                    attribute_id=attribute_id,
-                    attribute_name=attribute_name,
-                    label=label,
-                    error=str(exc),
-                )
+            fetch_results[request_key] = ([], str(exc))
+
+    for request in pending_requests:
+        request_key = str(request["request_key"] or "")
+        series, error = fetch_results.get(request_key, ([], "Unable to resolve tag request."))
+        resolved_tags.append(
+            TimeSeriesBatchTag(
+                tag_key=str(request["tag_key"] or ""),
+                asset_name=str(request["asset_name"] or ""),
+                item_id=str(request["item_id"] or ""),
+                attribute_id=str(request["attribute_id"] or "") or None,
+                attribute_name=str(request["attribute_name"] or "") or None,
+                label=str(request["label"] or ""),
+                series=series if error is None else [],
+                error=error,
             )
+        )
 
     return TimeSeriesBatchResponse(
         start_date=safe_start,

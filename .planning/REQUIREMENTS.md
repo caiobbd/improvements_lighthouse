@@ -74,6 +74,12 @@
 - [ ] **CHT-65**: User can interact with the sensor/event sidebar (select/plot/drag/tab switch) without sidebar scroll resetting to top.
 - [ ] **CHT-66**: User always sees chart canvas and X-axis context (page range or current zoom range) even when chart has no loaded timeseries yet.
 - [ ] **CHT-67**: User sees a non-destructive loading state where existing plotted data remains visible while fetching additional tags/refreshes, with loading indicator shown above the chart.
+- [ ] **CHT-68**: User can add a new sensor to a populated chart without existing traces being cleared before new tag data arrives.
+- [ ] **CHT-69**: User can change chart frequency (for example `6h` to `1h`) while keeping previous frequency data visible until new frequency data is ready.
+- [ ] **CHT-70**: User can trigger incremental tag loading where only missing tags are fetched and merged into current chart state.
+- [ ] **CHT-71**: User can benefit from per-tag frontend timeseries caching and in-flight deduplication so repeated tag operations avoid redundant requests.
+- [ ] **CHT-72**: User can get improved repeated-load performance from backend timeseries caching for equivalent item/attribute/date/frequency requests.
+- [ ] **CHT-73**: User can rely on latest-request-wins guardrails and accurate loading/no-data messaging under rapid chart interactions.
 
 ### Production Gas Drilldown
 
@@ -191,6 +197,12 @@
 | CHT-65 | Phase 6.2.1 | Pending |
 | CHT-66 | Phase 6.2.1 | Pending |
 | CHT-67 | Phase 6.2.1 | Pending |
+| CHT-68 | Phase 7 | Pending |
+| CHT-69 | Phase 7 | Pending |
+| CHT-70 | Phase 7 | Pending |
+| CHT-71 | Phase 7 | Pending |
+| CHT-72 | Phase 7 | Pending |
+| CHT-73 | Phase 7 | Pending |
 | PGAS-01 | Phase 5 | Pending |
 | PGAS-02 | Phase 5 | Pending |
 | PGAS-03 | Phase 5 | Pending |
@@ -199,10 +211,10 @@
 | UXQ-02 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 75 total
-- Mapped to phases: 75
+- v1 requirements: 81 total
+- Mapped to phases: 81
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-11*
-*Last updated: 2026-04-19 after adding Phase 6.2 advanced chart interaction QoL requirements*
+*Last updated: 2026-04-20 after adding Phase 7 timeseries persistence and incremental loading requirements*

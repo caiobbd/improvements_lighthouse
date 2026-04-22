@@ -23,6 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 6.1: Alarm Row Parity with Lighthouse Full Alarm Window (INSERTED)** - Align alarm information row layout and markdown payload rendering with Lighthouse alarm window behavior.
 - [ ] **Phase 6.2: Advanced Chart Interaction QoL (INSERTED)** - Add precision zoom/pan, axis controls, and multi-trace readability improvements for chart analysis.
 - [ ] **Phase 6.2.1: Sidebar scroll stability and non-disruptive chart loading UX (INSERTED)** - Preserve sidebar continuity and keep chart canvas/data visible through loading transitions.
+- [ ] **Phase 7: Timeseries incremental loading and persistence** - Preserve plotted data during incremental updates and reduce redundant timeseries fetches across frontend and backend.
 
 ## Phase Details
 
@@ -250,3 +251,23 @@ Plans:
 - [ ] 06.1-02: Implement Lighthouse-like alarm row shell layout and responsive styling parity.
 - [ ] 06.1-03: Implement sanitized markdown rendering for prognosis/description with raw-text fallback path.
 - [ ] 06.1-04: Add collapse/expand interactions, polish parity details, and verify with reference payload examples.
+
+### Phase 7: Timeseries incremental loading and persistence
+
+**Goal:** Fix incremental tag/frequency update regressions so existing chart data remains visible while only missing data is fetched, merged, and rendered.
+**Requirements**: CHT-68, CHT-69, CHT-70, CHT-71, CHT-72, CHT-73
+**Depends on:** Phase 6
+**UI hint**: yes
+**Success Criteria** (what must be TRUE):
+  1. User can add a new sensor to an already-loaded chart without clearing previously plotted lines.
+  2. User can change frequency (for example `6h` to `1h`) and keep prior frequency data visible until new frequency data is ready.
+  3. User sees incremental fetch behavior where existing tags are reused from cache and only missing tags are fetched.
+  4. Backend avoids repeated equivalent timeseries computations within TTL and improves repeated batch responsiveness.
+  5. User sees consistent loading/no-data messaging with latest-request-wins guardrails under rapid interactions.
+**Plans:** 4/4 plans executed
+
+Plans:
+- [x] 07-01: Refactor chart lifecycle to prevent full remount and preserve runtime series during tag/frequency updates.
+- [x] 07-02: Implement frontend per-tag cache, in-flight dedupe, and incremental merge fetch pipeline.
+- [x] 07-03: Add backend timeseries TTL cache and optimize `/timeseries-batch` for repeated loads.
+- [x] 07-04: Add verification guardrails for non-destructive loading UX, latest-request handling, and performance deltas.

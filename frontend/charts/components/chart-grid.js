@@ -1,6 +1,8 @@
 import { createChartCard } from "./chart-card.js";
 import { storeConstants } from "../state/store.js";
 
+const gridRuntimeByContainer = new WeakMap();
+
 function createSyncBus() {
   const handlers = new Map();
 
@@ -74,37 +76,95 @@ function renderEmptyState(container, onAdd) {
   container.append(wrapper);
 }
 
+function getRuntime(container) {
+  let runtime = gridRuntimeByContainer.get(container);
+  if (runtime) return runtime;
+  runtime = {
+    activePageId: null,
+    syncBus: createSyncBus(),
+    chartEntries: new Map(),
+    addChartBlock: null,
+  };
+  gridRuntimeByContainer.set(container, runtime);
+  return runtime;
+}
+
+function destroyEntry(entry) {
+  entry?.api?.destroy?.();
+  entry?.node?.remove?.();
+}
+
 export async function renderChartGrid(container, snapshot, actions) {
-  container.innerHTML = "";
   const page = snapshot.pages.find((item) => item.id === snapshot.activePageId);
   if (!page) return;
+  const runtime = getRuntime(container);
+
+  if (runtime.activePageId !== page.id) {
+    runtime.chartEntries.forEach((entry) => destroyEntry(entry));
+    runtime.chartEntries.clear();
+    runtime.addChartBlock?.remove?.();
+    runtime.addChartBlock = null;
+    runtime.syncBus = createSyncBus();
+    runtime.activePageId = page.id;
+    container.innerHTML = "";
+  }
 
   const columns = Math.max(1, Math.min(2, Number(page.gridColumns || 2)));
   container.dataset.columns = String(columns);
 
   if (page.charts.length === 0) {
+    runtime.chartEntries.forEach((entry) => destroyEntry(entry));
+    runtime.chartEntries.clear();
+    runtime.addChartBlock?.remove?.();
+    runtime.addChartBlock = null;
+    container.innerHTML = "";
     renderEmptyState(container, () => actions.addChart(page.id));
     return;
   }
 
-  const syncBus = createSyncBus();
-
   const nodeByChartId = new Map();
   page.charts.forEach((chart) => {
-    const node = createChartCard({
-      chart,
-      page,
-      actions,
-      syncBus,
-    });
+    let entry = runtime.chartEntries.get(chart.id);
+    if (!entry) {
+      const node = createChartCard({
+        chart,
+        page,
+        actions,
+        syncBus: runtime.syncBus,
+      });
+      entry = {
+        node,
+        api: node.__chartCardApi || null,
+      };
+      runtime.chartEntries.set(chart.id, entry);
+    } else {
+      entry.api?.update?.(chart, page);
+    }
+
+    const node = entry.node;
     const chartId = chart.id;
     node.dataset.chartId = chartId;
     nodeByChartId.set(chartId, node);
-    container.append(node);
+  });
+
+  const activeChartIds = new Set(page.charts.map((chart) => chart.id));
+  Array.from(runtime.chartEntries.entries()).forEach(([chartId, entry]) => {
+    if (activeChartIds.has(chartId)) return;
+    destroyEntry(entry);
+    runtime.chartEntries.delete(chartId);
+  });
+
+  page.charts.forEach((chart) => {
+    const node = nodeByChartId.get(chart.id);
+    if (node) {
+      container.append(node);
+    }
   });
 
   const isAtLimit = page.charts.length >= storeConstants.MAX_CHARTS_PER_PAGE;
-  container.append(createAddChartBlock(() => actions.addChart(page.id), isAtLimit));
+  runtime.addChartBlock?.remove?.();
+  runtime.addChartBlock = createAddChartBlock(() => actions.addChart(page.id), isAtLimit);
+  container.append(runtime.addChartBlock);
 
   if (page.pendingScrollChartId && nodeByChartId.has(page.pendingScrollChartId)) {
     const target = nodeByChartId.get(page.pendingScrollChartId);

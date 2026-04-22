@@ -1,4 +1,4 @@
-import { getTimeSeries, getTimeSeriesBatch, ApiClientError } from "../services/api-client.js";
+import { getTimeSeries, getTimeSeriesByTags, ApiClientError } from "../services/api-client.js";
 import { renderLineChart } from "./d3-line-chart.js";
 import { createLegendPanel } from "./legend-panel.js";
 
@@ -19,6 +19,7 @@ const SERIES_COLORS = [
 const SENSOR_DRAG_MIME = "application/x-lighthouse-sensor-tag";
 const GLOBAL_SENSOR_DRAG_KEY = "__lighthouseDraggedSensorTag";
 const INLINE_NOTICE_MS = 2600;
+const chartRuntimeCache = new Map();
 
 function resolveDateParams(page) {
   const end = new Date();
@@ -214,6 +215,30 @@ function toSerializableDomain(domain) {
   return [start.toISOString(), end.toISOString()];
 }
 
+function cloneForRuntime(value) {
+  if (typeof structuredClone === "function") {
+    return structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
+function buildChartRuntimeKey(page, chart) {
+  return `${String(page?.id || "")}::${String(chart?.id || "")}`;
+}
+
+function buildQueryContextKey(page) {
+  const dateParams = resolveDateParams(page);
+  const effectiveWindow = resolveEffectiveWindow(page, dateParams);
+  return `${dateParams.start_date}|${dateParams.end_date}|${effectiveWindow}`;
+}
+
+function buildTagSetKey(tags) {
+  return (Array.isArray(tags) ? tags : [])
+    .map((tag) => toTagKey(tag))
+    .sort()
+    .join("|");
+}
+
 function buildActionMenu(entries) {
   const menu = document.createElement("div");
   menu.className = "chart-action-menu";
@@ -241,7 +266,7 @@ async function loadSeriesForTags(tags, page, options = {}) {
   const dateParams = resolveDateParams(page);
   const window = resolveEffectiveWindow(page, dateParams);
   const forceRefresh = Boolean(options.forceRefresh);
-  const payload = await getTimeSeriesBatch({
+  const payload = await getTimeSeriesByTags({
     tags: tags.map((tag) => ({
       tag_key: toTagKey(tag),
       asset_name: tag.assetName,
@@ -416,17 +441,44 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
   body.classList.add("chart-drop-target", "chart-drop-zone-body");
   footer.classList.add("chart-drop-target", "chart-drop-zone-tags");
 
-  let currentSeries = [];
-  const hiddenSeries = new Set();
+  const runtimeKey = buildChartRuntimeKey(page, chart);
+  const cachedRuntime = chartRuntimeCache.get(runtimeKey);
+  let currentSeries = Array.isArray(cachedRuntime?.series) ? cloneForRuntime(cachedRuntime.series) : [];
+  const hiddenSeries = new Set(Array.isArray(cachedRuntime?.hiddenSeries) ? cachedRuntime.hiddenSeries : []);
   let chartRenderHandle = null;
   let latestLoadToken = 0;
   let inlineNoticeTimeout = null;
-  let loadState = "idle";
+  let loadState = cachedRuntime?.loadState || (currentSeries.length > 0 ? "has_data" : "idle");
+  let lastQueryContextKey = cachedRuntime?.queryContextKey || null;
+  let lastTagSetKey = cachedRuntime?.tagSetKey || "";
   const interactionState = {
-    currentXDomain: null,
-    currentYDomain: null,
-    previewXDomain: null,
+    currentXDomain: Array.isArray(cachedRuntime?.interactionState?.currentXDomain)
+      ? cloneForRuntime(cachedRuntime.interactionState.currentXDomain)
+      : null,
+    currentYDomain: Array.isArray(cachedRuntime?.interactionState?.currentYDomain)
+      ? cloneForRuntime(cachedRuntime.interactionState.currentYDomain)
+      : null,
+    previewXDomain: Array.isArray(cachedRuntime?.interactionState?.previewXDomain)
+      ? cloneForRuntime(cachedRuntime.interactionState.previewXDomain)
+      : null,
   };
+
+  function persistRuntimeCache() {
+    chartRuntimeCache.set(runtimeKey, {
+      series: cloneForRuntime(currentSeries),
+      hiddenSeries: Array.from(hiddenSeries),
+      loadState,
+      queryContextKey: lastQueryContextKey,
+      tagSetKey: lastTagSetKey,
+      interactionState: {
+        currentXDomain: toSerializableDomain(interactionState.currentXDomain),
+        currentYDomain: Array.isArray(interactionState.currentYDomain)
+          ? cloneForRuntime(interactionState.currentYDomain)
+          : null,
+        previewXDomain: toSerializableDomain(interactionState.previewXDomain),
+      },
+    });
+  }
 
   function getEmptyStateMessage() {
     if (loadState === "loading") {
@@ -557,6 +609,7 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
           drawChart();
           renderLegend();
           renderActionMenu();
+          persistRuntimeCache();
         },
         onRemove: (seriesKey, line) => {
           const lineTagKey = getLineTagKey(line);
@@ -575,6 +628,7 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
           hiddenSeries.delete(seriesKey);
           persistChartPatch(patch);
           void load();
+          persistRuntimeCache();
         },
       }),
     );
@@ -635,6 +689,7 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
         if (nextState?.xDomain) interactionState.currentXDomain = nextState.xDomain;
         if (nextState?.yDomain) interactionState.currentYDomain = nextState.yDomain;
         interactionState.previewXDomain = nextState?.previewXDomain || null;
+        persistRuntimeCache();
       },
       onSyncPreviewChange: (range) => {
         interactionState.previewXDomain = range || null;
@@ -643,12 +698,14 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
         } else {
           syncBus?.clearPreview?.(chart.id);
         }
+        persistRuntimeCache();
       },
       onSyncCommit: (range) => {
         if (!range) return;
         interactionState.currentXDomain = range;
         interactionState.previewXDomain = null;
         syncBus?.commitXDomain?.(chart.id, range);
+        persistRuntimeCache();
       },
     });
     if (interactionState.previewXDomain) {
@@ -759,9 +816,11 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
     card.classList.toggle("is-loading", loading);
     if (loading && currentSeries.length === 0) {
       drawChart();
+      persistRuntimeCache();
       return;
     }
     ensureLoadingOverlay();
+    persistRuntimeCache();
   }
 
   function toggleNormalization() {
@@ -777,6 +836,7 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
     drawChart();
     renderLegend();
     renderActionMenu();
+    persistRuntimeCache();
   }
 
   function toggleSplitYAxis() {
@@ -795,6 +855,7 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
     drawChart();
     renderLegend();
     renderActionMenu();
+    persistRuntimeCache();
   }
 
   function resetView() {
@@ -851,17 +912,23 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
       (Array.isArray(chart.fromAttributes) && chart.fromAttributes.length > 0) ||
       (Array.isArray(chart.fromCategories) && chart.fromCategories.length > 0);
     const hasQuery = tags.length > 0 || hasLegacyQuery;
-    hiddenSeries.clear();
     const hasRenderedSeries = currentSeries.length > 0;
     const forceRefresh = Boolean(options.forceRefresh);
+    const queryContextKey = buildQueryContextKey(page);
+    const tagSetKey = buildTagSetKey(tags);
+    const queryContextChanged = queryContextKey !== lastQueryContextKey;
 
     if (!hasQuery) {
       loadState = "idle";
       currentSeries = [];
+      hiddenSeries.clear();
       interactionState.currentYDomain = null;
+      lastQueryContextKey = queryContextKey;
+      lastTagSetKey = tagSetKey;
       drawChart();
       renderLegend();
       renderActionMenu();
+      persistRuntimeCache();
       if (typeof actions.endChartRefresh === "function") {
         actions.endChartRefresh(requestKey);
       }
@@ -872,9 +939,34 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
 
     try {
       if (tags.length > 0) {
-        const result = await loadSeriesForTags(tags, page, { forceRefresh });
-        if (loadToken !== latestLoadToken) return;
-        currentSeries = result.series;
+        const requestedTagKeys = new Set(tags.map((tag) => toTagKey(tag)));
+        currentSeries = currentSeries.filter((line) => requestedTagKeys.has(getLineTagKey(line)));
+        Array.from(hiddenSeries).forEach((seriesKey) => {
+          const [seriesTagKey] = String(seriesKey || "").split("::");
+          if (seriesTagKey && !requestedTagKeys.has(seriesTagKey)) {
+            hiddenSeries.delete(seriesKey);
+          }
+        });
+
+        const hasSeriesForTag = new Set(currentSeries.map((line) => getLineTagKey(line)).filter(Boolean));
+        let tagsToFetch = tags;
+        if (!forceRefresh && !queryContextChanged && hasRenderedSeries) {
+          tagsToFetch = tags.filter((tag) => !hasSeriesForTag.has(toTagKey(tag)));
+        }
+
+        if (tagsToFetch.length > 0) {
+          const result = await loadSeriesForTags(tagsToFetch, page, { forceRefresh });
+          if (loadToken !== latestLoadToken) return;
+
+          const fetchedTagKeys = new Set(tagsToFetch.map((tag) => toTagKey(tag)));
+          const fullReload = forceRefresh || queryContextChanged || tagsToFetch.length === tags.length;
+          if (fullReload) {
+            currentSeries = result.series;
+          } else {
+            const retained = currentSeries.filter((line) => !fetchedTagKeys.has(getLineTagKey(line)));
+            currentSeries = [...retained, ...result.series];
+          }
+        }
       } else {
         const dateParams = resolveDateParams(page);
         const payload = await getTimeSeries({
@@ -897,6 +989,8 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
         }));
       }
 
+      lastQueryContextKey = queryContextKey;
+      lastTagSetKey = tagSetKey;
       loadState = currentSeries.length > 0 ? "has_data" : "no_data";
       if (currentSeries.length > 0) {
         interactionState.currentYDomain =
@@ -908,6 +1002,7 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
       drawChart();
       renderLegend();
       renderActionMenu();
+      persistRuntimeCache();
     } catch (error) {
       if (loadToken !== latestLoadToken) return;
       const message = normalizeMessage(error);
@@ -915,13 +1010,12 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
       console.warn("Chart refresh failed; keeping previous data", error);
       if (!hasRenderedSeries) {
         loadState = "no_data";
-      }
-      if (!hasRenderedSeries) {
         currentSeries = [];
         interactionState.currentYDomain = null;
         drawChart();
         renderLegend();
       }
+      persistRuntimeCache();
     } finally {
       if (typeof actions.endChartRefresh === "function") {
         actions.endChartRefresh(requestKey);
@@ -993,9 +1087,30 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
   card.append(header, body, inlineNotice, footer);
   drawChart();
   renderLegend();
+  persistRuntimeCache();
   queueMicrotask(() => {
     void load({ forceRefresh });
   });
+
+  card.__chartCardApi = {
+    update(nextChart, nextPage) {
+      chart = nextChart;
+      page = nextPage;
+      title.textContent = chart.title || "Untitled chart";
+      titleInput.value = title.textContent;
+      renderActionMenu();
+      void load();
+    },
+    destroy() {
+      unregisterSync();
+      if (inlineNoticeTimeout) {
+        window.clearTimeout(inlineNoticeTimeout);
+        inlineNoticeTimeout = null;
+      }
+      clearActionMenuCloseTimer();
+      chartRenderHandle?.destroy?.();
+    },
+  };
 
   return card;
 }

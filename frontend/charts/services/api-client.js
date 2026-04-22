@@ -2,7 +2,9 @@
 const API_BASE = config.apiBaseUrl || "http://127.0.0.1:8001/api/v1/charts";
 const TIMESERIES_CACHE_TTL_MS = 60 * 1000;
 const TIMESERIES_CACHE_MAX_ENTRIES = 100;
+const TAG_TIMESERIES_CACHE_MAX_ENTRIES = 500;
 const timeseriesCache = new Map();
+const tagTimeseriesCache = new Map();
 const inflightTimeseriesRequests = new Map();
 
 export class ApiClientError extends Error {
@@ -107,6 +109,55 @@ function setCachedTimeSeries(cacheKey, payload) {
     const oldestKey = timeseriesCache.keys().next().value;
     if (oldestKey) {
       timeseriesCache.delete(oldestKey);
+    }
+  }
+}
+
+function toTagKey(tag) {
+  const itemId = String(tag?.item_id || tag?.itemId || "").trim();
+  const attributeId = String(tag?.attribute_id || tag?.attributeId || "").trim();
+  const attributeName = String(tag?.attribute_name || tag?.attributeName || "").trim().toLowerCase();
+  return `${itemId}::${attributeId || attributeName}`;
+}
+
+function normalizeTagRequest(tag = {}) {
+  const normalized = {
+    tag_key: String(tag.tag_key || tag.tagKey || "").trim(),
+    asset_name: String(tag.asset_name || tag.assetName || "").trim(),
+    item_id: String(tag.item_id || tag.itemId || "").trim(),
+    attribute_id: String(tag.attribute_id || tag.attributeId || "").trim(),
+    attribute_name: String(tag.attribute_name || tag.attributeName || "").trim(),
+    label: String(tag.label || tag.attribute_name || tag.attributeName || "").trim(),
+  };
+  if (!normalized.tag_key) {
+    normalized.tag_key = toTagKey(normalized);
+  }
+  return normalized;
+}
+
+function buildTagSeriesCacheKey(params) {
+  return buildTimeSeriesCacheKey("/timeseries-tag", params);
+}
+
+function getCachedTagSeries(cacheKey) {
+  const cached = tagTimeseriesCache.get(cacheKey);
+  if (!cached) return null;
+  if (Date.now() - cached.createdAt > TIMESERIES_CACHE_TTL_MS) {
+    tagTimeseriesCache.delete(cacheKey);
+    return null;
+  }
+  return clonePayload(cached.payload);
+}
+
+function setCachedTagSeries(cacheKey, payload) {
+  tagTimeseriesCache.set(cacheKey, {
+    createdAt: Date.now(),
+    payload: clonePayload(payload),
+  });
+  if (tagTimeseriesCache.size > TAG_TIMESERIES_CACHE_MAX_ENTRIES) {
+    const oldestKey = tagTimeseriesCache.keys().next().value;
+    if (oldestKey) {
+      tagTimeseriesCache.delete(oldestKey);
     }
   }
 }
@@ -260,6 +311,104 @@ export async function getTimeSeriesBatch(params) {
     return normalized;
   });
   return normalizedPayload;
+}
+
+export async function getTimeSeriesByTags(params) {
+  const forceRefresh = Boolean(params?.force_refresh || params?.forceRefresh);
+  const requestedTags = Array.isArray(params?.tags) ? params.tags.map((tag) => normalizeTagRequest(tag)) : [];
+  const safeTags = requestedTags.filter((tag) => tag.item_id && (tag.attribute_id || tag.attribute_name));
+  const safeParams = {
+    start_date: params?.start_date,
+    end_date: params?.end_date,
+    window: params?.window,
+  };
+
+  const resolvedByTagKey = new Map();
+  const missingTags = [];
+
+  safeTags.forEach((tag) => {
+    const tagKey = tag.tag_key || toTagKey(tag);
+    const tagCacheKey = buildTagSeriesCacheKey({
+      ...safeParams,
+      tag_key: tagKey,
+      item_id: tag.item_id,
+      attribute_id: tag.attribute_id || "",
+      attribute_name: tag.attribute_name || "",
+    });
+
+    if (forceRefresh) {
+      tagTimeseriesCache.delete(tagCacheKey);
+    } else {
+      const cached = getCachedTagSeries(tagCacheKey);
+      if (cached) {
+        resolvedByTagKey.set(tagKey, cached);
+        return;
+      }
+    }
+
+    missingTags.push(tag);
+  });
+
+  if (missingTags.length > 0) {
+    const batchPayload = await getTimeSeriesBatch({
+      ...safeParams,
+      tags: missingTags,
+      force_refresh: forceRefresh,
+    });
+
+    const returnedTags = Array.isArray(batchPayload?.tags) ? batchPayload.tags : [];
+    returnedTags.forEach((entry, index) => {
+      const sourceTag = missingTags[index] || {};
+      const tagKey = String(entry?.tag_key || sourceTag.tag_key || toTagKey(sourceTag));
+      const normalizedEntry = {
+        tag_key: tagKey,
+        asset_name: String(entry?.asset_name || sourceTag.asset_name || ""),
+        item_id: String(entry?.item_id || sourceTag.item_id || ""),
+        attribute_id: String(entry?.attribute_id || sourceTag.attribute_id || ""),
+        attribute_name: String(entry?.attribute_name || sourceTag.attribute_name || ""),
+        label: String(entry?.label || sourceTag.label || sourceTag.attribute_name || sourceTag.attribute_id || ""),
+        series: normalizeSeries(entry?.series || []),
+        error: entry?.error || null,
+      };
+      resolvedByTagKey.set(tagKey, normalizedEntry);
+
+      if (!normalizedEntry.error) {
+        const tagCacheKey = buildTagSeriesCacheKey({
+          ...safeParams,
+          tag_key: tagKey,
+          item_id: normalizedEntry.item_id,
+          attribute_id: normalizedEntry.attribute_id || "",
+          attribute_name: normalizedEntry.attribute_name || "",
+        });
+        setCachedTagSeries(tagCacheKey, normalizedEntry);
+      }
+    });
+  }
+
+  const orderedTags = safeTags.map((tag) => {
+    const tagKey = tag.tag_key || toTagKey(tag);
+    const resolved = resolvedByTagKey.get(tagKey);
+    if (resolved) return resolved;
+    return {
+      tag_key: tagKey,
+      asset_name: tag.asset_name || "",
+      item_id: tag.item_id || "",
+      attribute_id: tag.attribute_id || "",
+      attribute_name: tag.attribute_name || "",
+      label: tag.label || tag.attribute_name || tag.attribute_id || tagKey,
+      series: [],
+      error: "No data returned for requested tag.",
+    };
+  });
+
+  return {
+    start_date: safeParams.start_date || null,
+    end_date: safeParams.end_date || null,
+    window: safeParams.window || null,
+    effective_window: safeParams.window || null,
+    tags: orderedTags,
+    warnings: [],
+  };
 }
 
 export async function savePage(page) {
