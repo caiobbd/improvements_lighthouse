@@ -8,15 +8,15 @@ source:
   - 07-03-PLAN.md
   - 07-04-PLAN.md
 started: 2026-04-20T19:32:28Z
-updated: 2026-04-22T11:19:29Z
+updated: 2026-04-22T11:22:48Z
 ---
 
 ## Current Test
 
-number: 4
-name: Repeated Equivalent Requests Benefit from Cache
+number: 5
+name: Loading and No-Data States Are Correct and Stable
 expected: |
-  Repeating equivalent tag/date/window requests should feel faster and avoid redundant repeated backend computations within cache TTL.
+  During active fetch, loading state/message is shown without destroying current plotted data; if no data is returned, the no-data message is shown appropriately for that chart.
 awaiting: user response
 
 ## Tests
@@ -35,7 +35,7 @@ result: pass
 
 ### 4. Repeated Equivalent Requests Benefit from Cache
 expected: Repeating equivalent tag/date/window requests should feel faster and avoid redundant repeated backend computations within cache TTL.
-result: [pending]
+result: pass
 
 ### 5. Loading and No-Data States Are Correct and Stable
 expected: During active fetch, loading state/message is shown without destroying current plotted data; if no data is returned, the no-data message is shown appropriately for that chart.
@@ -44,9 +44,9 @@ result: [pending]
 ## Summary
 
 total: 5
-passed: 3
+passed: 4
 issues: 0
-pending: 2
+pending: 1
 skipped: 0
 blocked: 0
 
