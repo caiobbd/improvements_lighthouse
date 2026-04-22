@@ -6,7 +6,7 @@ current_phase: 6.2.1
 current_phase_name: sidebar-scroll-stability-and-non-disruptive-chart-loading-ux
 status: executing
 stopped_at: Phase 2.2 executed; next step is human browser verification then transition planning for Phase 3
-last_updated: "2026-04-22T11:55:14Z"
+last_updated: "2026-04-22T12:36:30Z"
 last_activity: 2026-04-22
 progress:
   total_phases: 11
@@ -33,7 +33,7 @@ Phase: 6.2.1 (sidebar-scroll-stability-and-non-disruptive-chart-loading-ux) — 
 Plan: 1 of 3
 Status: Executing Phase 6.2.1
 Last activity: 2026-04-22
-**Last Activity Description:** Completed quick task 260422-cck (charts plotting/context menu + empty-state fix)
+**Last Activity Description:** Completed quick task 260422-d95 (explicit zoom reset actions and docs update)
 
 Progress: [#######...] 70%
 
@@ -62,7 +62,8 @@ Progress: [#######...] 70%
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 260422-cck | fix ghost empty-state card when charts exist | 2026-04-22 | pending | [260422-cck-fix-ghost-empty-state-card-when-charts-e](./quick/260422-cck-fix-ghost-empty-state-card-when-charts-e/) |
+| 260422-cck | fix ghost empty-state card when charts exist | 2026-04-22 | 09f7a13 | [260422-cck-fix-ghost-empty-state-card-when-charts-e](./quick/260422-cck-fix-ghost-empty-state-card-when-charts-e/) |
+| 260422-d95 | replace double-click zoom reset with actions menu reset zoom controls | 2026-04-22 | pending | [260422-d95-replace-double-click-zoom-reset-with-act](./quick/260422-d95-replace-double-click-zoom-reset-with-act/) |
 
 ## Session Continuity
 

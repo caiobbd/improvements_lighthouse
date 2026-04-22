@@ -33,6 +33,12 @@ function createSyncBus() {
         handler.setPreviewXDomain?.(null);
       });
     },
+    resetAllViews() {
+      handlers.forEach((handler) => {
+        handler.setPreviewXDomain?.(null);
+        handler.resetView?.();
+      });
+    },
   };
 }
 

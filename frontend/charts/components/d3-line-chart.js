@@ -928,9 +928,6 @@ function renderLineChartWithD3(d3, config) {
   interactionLayer.on("pointermove", onPointerMove);
   interactionLayer.on("pointerup", onPointerUp);
   interactionLayer.on("pointercancel", onPointerCancel);
-  interactionLayer.on("dblclick", () => {
-    resetView();
-  });
 
   renderAll();
 

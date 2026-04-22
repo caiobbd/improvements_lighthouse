@@ -415,7 +415,7 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
     <p>Ctrl + Wheel: Zoom X</p>
     <p>Alt + Wheel: Zoom Y</p>
     <p>Ctrl + Shift + Drag: Sync X zoom (all charts)</p>
-    <p>Double-click: Reset view</p>
+    <p>Use Actions menu for reset commands</p>
   `;
   helpWrap.append(helpButton, helpTooltip);
 
@@ -592,6 +592,12 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
           applyExternalXDomain(range) {
             interactionState.currentXDomain = toSerializableDomain(range);
             chartRenderHandle?.applyExternalXDomain?.(interactionState.currentXDomain);
+          },
+          resetView() {
+            interactionState.previewXDomain = null;
+            chartRenderHandle?.setPreviewXDomain?.(null);
+            chartRenderHandle?.resetView?.();
+            persistRuntimeCache();
           },
         })
       : () => {};
@@ -858,8 +864,12 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
     persistRuntimeCache();
   }
 
-  function resetView() {
+  function resetZoom() {
     chartRenderHandle?.resetView?.();
+  }
+
+  function resetZoomAllPlots() {
+    syncBus?.resetAllViews?.();
   }
 
   function renderActionMenu() {
@@ -877,8 +887,12 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
         onClick: () => actions.editChartTags(page.id, chart),
       },
       {
-        label: "Reset View",
-        onClick: () => resetView(),
+        label: "Reset Zoom",
+        onClick: () => resetZoom(),
+      },
+      {
+        label: "Reset Zoom All Plots",
+        onClick: () => resetZoomAllPlots(),
       },
       {
         label: chart.normalizationEnabled ? "Disable Normalization" : "Enable Normalization",
