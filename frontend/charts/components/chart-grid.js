@@ -64,6 +64,8 @@ function renderEmptyState(container, onAdd) {
   const template = document.getElementById("empty-state-template");
   const fragment = template.content.cloneNode(true);
   const wrapper = document.createElement("div");
+  wrapper.className = "chart-grid-empty-state";
+  wrapper.dataset.role = "chart-grid-empty-state";
   wrapper.append(fragment);
 
   const action = document.createElement("button");
@@ -74,6 +76,7 @@ function renderEmptyState(container, onAdd) {
 
   wrapper.querySelector(".empty-chart-state-container")?.append(action);
   container.append(wrapper);
+  return wrapper;
 }
 
 function getRuntime(container) {
@@ -84,6 +87,7 @@ function getRuntime(container) {
     syncBus: createSyncBus(),
     chartEntries: new Map(),
     addChartBlock: null,
+    emptyStateNode: null,
   };
   gridRuntimeByContainer.set(container, runtime);
   return runtime;
@@ -104,6 +108,8 @@ export async function renderChartGrid(container, snapshot, actions) {
     runtime.chartEntries.clear();
     runtime.addChartBlock?.remove?.();
     runtime.addChartBlock = null;
+    runtime.emptyStateNode?.remove?.();
+    runtime.emptyStateNode = null;
     runtime.syncBus = createSyncBus();
     runtime.activePageId = page.id;
     container.innerHTML = "";
@@ -117,10 +123,16 @@ export async function renderChartGrid(container, snapshot, actions) {
     runtime.chartEntries.clear();
     runtime.addChartBlock?.remove?.();
     runtime.addChartBlock = null;
+    runtime.emptyStateNode?.remove?.();
+    runtime.emptyStateNode = null;
     container.innerHTML = "";
-    renderEmptyState(container, () => actions.addChart(page.id));
+    runtime.emptyStateNode = renderEmptyState(container, () => actions.addChart(page.id));
     return;
   }
+
+  runtime.emptyStateNode?.remove?.();
+  runtime.emptyStateNode = null;
+  container.querySelectorAll('[data-role="chart-grid-empty-state"]').forEach((node) => node.remove());
 
   const nodeByChartId = new Map();
   page.charts.forEach((chart) => {

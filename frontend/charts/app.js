@@ -881,6 +881,35 @@ function plotSingleSensor(sensor) {
   addChartsWithCap([buildChartFromTags([tag], tag.label)]);
 }
 
+function getTagsForSensorCategory(category) {
+  return dedupeTags(
+    (Array.isArray(category?.sensors) ? category.sensors : [])
+      .map((sensor) => sensorToTag(sensor))
+      .filter(Boolean),
+  );
+}
+
+function plotSensorCategory(category, selectedNode) {
+  const tags = getTagsForSensorCategory(category);
+  if (!tags.length) {
+    setSidebarNotice("No timeseries sensors available in this category.");
+    return;
+  }
+  const equipmentName = String(selectedNode?.name || "Equipment").trim();
+  const categoryName = String(category?.category || "Category").trim();
+  addChartsWithCap([buildChartFromTags(tags, `${equipmentName} - ${categoryName}`)]);
+}
+
+function plotSensorCategorySensors(category) {
+  const tags = getTagsForSensorCategory(category);
+  if (!tags.length) {
+    setSidebarNotice("No timeseries sensors available in this category.");
+    return;
+  }
+  const charts = tags.map((tag) => buildChartFromTags([tag], tag.label));
+  addChartsWithCap(charts);
+}
+
 function renderEquipmentTreeList(target, snapshot) {
   target.innerHTML = "";
   const filter = sidebarState.equipmentFilter.trim();
@@ -1038,6 +1067,27 @@ function renderSensorSidebar(target, snapshot) {
         sidebarState.expandedSensorCategories.add(category.category);
       }
       invalidateSidebarRender();
+    });
+    header.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      showContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        items: [
+          {
+            label: "Plot category",
+            onSelect: () => {
+              plotSensorCategory(category, selectedNode);
+            },
+          },
+          {
+            label: "Plot category sensors",
+            onSelect: () => {
+              plotSensorCategorySensors(category);
+            },
+          },
+        ],
+      });
     });
     section.append(header);
 
@@ -1219,7 +1269,18 @@ async function plotAlarmEventInNewPage(event) {
     warnings,
   };
 
-  const charts = attributeResolution.tags.map((tag) => buildChartFromTags([tag], tag.label));
+  const charts = [];
+  if (attributeResolution.tags.length > 0) {
+    charts.push(
+      buildChartFromTags(
+        attributeResolution.tags,
+        `${event.name || "Alarm"} - All sensors`,
+      ),
+    );
+    charts.push(
+      ...attributeResolution.tags.map((tag) => buildChartFromTags([tag], tag.label)),
+    );
+  }
   store.addPageWithConfig({
     name: buildAlarmPageName(event.name),
     pageType: "alarm",
