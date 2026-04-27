@@ -99,9 +99,3 @@ config_file = "C:/Users/CaioBorges/_pgms/_repos/improvements_lighthouse/.codex/a
 [agents.gsd-verifier]
 description = "Verifies phase goal achievement through goal-backward analysis. Checks codebase delivers what phase promised, not just that tasks completed. Creates VERIFICATION.md report."
 config_file = "C:/Users/CaioBorges/_pgms/_repos/improvements_lighthouse/.codex/agents/gsd-verifier.toml"
-
-
-# GSD Hooks
-[[hooks]]
-event = "SessionStart"
-command = "node C:/Users/CaioBorges/_pgms/_repos/improvements_lighthouse/.codex/hooks/gsd-check-update.js"

@@ -13,6 +13,8 @@ const POINTER_CLICK_TOLERANCE = 4;
 const PAN_ZONE_RATIO = 0.2;
 const PIN_LIMIT = 5;
 const PIN_HIT_RADIUS = 8;
+const CURSOR_HEADER_HEIGHT = 18;
+const CURSOR_HEADER_OFFSET = 20;
 
 let d3ModulePromise = null;
 
@@ -430,10 +432,10 @@ function renderLineChartWithD3(d3, config) {
   const gridLayer = root.append("g").attr("class", "grid-lines");
   const alarmLayer = root.append("g").attr("class", "alarm-span-layer");
   const previewLayer = root.append("g").attr("class", "sync-preview-layer");
+  const linesLayer = root.append("g").attr("clip-path", `url(#${clipId})`);
   const cursorLayer = root.append("g").attr("class", "chart-cursor-layer");
   const hoverLayer = cursorLayer.append("g").attr("class", "hover-cursor-layer");
   const pinnedLayer = cursorLayer.append("g").attr("class", "pinned-cursor-layer");
-  const linesLayer = root.append("g").attr("clip-path", `url(#${clipId})`);
   const splitAxisLayer = root.append("g").attr("class", "split-axis-layer");
   const yAxisLayer = root.append("g");
   const xAxisLayer = root.append("g").attr("transform", `translate(0,${innerHeight})`);
@@ -471,6 +473,19 @@ function renderLineChartWithD3(d3, config) {
     .attr("class", "hover-cursor-line")
     .attr("y1", 0)
     .attr("y2", innerHeight)
+    .style("display", "none");
+
+  const hoverHeader = hoverLayer
+    .append("rect")
+    .attr("class", "hover-cursor-header")
+    .attr("height", CURSOR_HEADER_HEIGHT)
+    .attr("rx", 3)
+    .attr("ry", 3)
+    .style("display", "none");
+
+  const hoverHeaderText = hoverLayer
+    .append("text")
+    .attr("class", "hover-cursor-header-text")
     .style("display", "none");
 
   const interactionLayer = root
@@ -684,6 +699,7 @@ function renderLineChartWithD3(d3, config) {
     applyDomainToScales();
     renderAxes();
     renderLinesLayer();
+    cursorLayer.raise();
     renderAlarmSpan();
     renderPreviewSpan();
     renderHoverCursor();
@@ -691,7 +707,7 @@ function renderLineChartWithD3(d3, config) {
     persistInteractionState();
   }
 
-  const formatUtcTimestamp = d3.utcFormat("%m/%d/%Y %H:%M:%S UTC");
+  const formatCursorTimestamp = d3.utcFormat("%m/%d/%Y %H:%M:%S");
 
   function getNearestPointAtX(mouseX) {
     const hoveredDate = xScale.invert(mouseX);
@@ -757,41 +773,63 @@ function renderLineChartWithD3(d3, config) {
       return;
     }
     const values = getValuesForTimestamp(timestampIso);
-    const [mouseX, mouseY] = d3.pointer(event, interactionLayer.node());
+    const [mouseX] = d3.pointer(event, interactionLayer.node());
     const tooltipRows = values.length
       ? values
           .map(
             (row) =>
-              `<div class="chart-hover-tooltip-row"><span style="color:${row.color}">${row.label}</span><strong>${formatValue(row.originalValue)}</strong></div>`,
+              `<div class="chart-hover-tooltip-row"><strong style="color:${row.color}">${formatValue(row.originalValue)}</strong></div>`,
           )
           .join("")
       : '<div class="chart-hover-tooltip-row"><span>No visible traces</span></div>';
 
     tooltip
       .style("display", "block")
-      .style("left", `${Math.min(width - 250, mouseX + margin.left + 10)}px`)
-      .style("top", `${Math.max(8, mouseY + margin.top - 12)}px`)
-      .html(
-        `<div class="chart-hover-tooltip-time">${formatUtcTimestamp(new Date(timestampIso))}</div>${tooltipRows}`,
-      );
+      .style("top", `${Math.max(margin.top + 6, 24)}px`)
+      .html(tooltipRows);
+    const tooltipNode = tooltip.node();
+    const measuredWidth = Math.max(56, tooltipNode?.getBoundingClientRect?.().width || 56);
+    tooltip.style(
+      "left",
+      `${clamp(mouseX + margin.left - measuredWidth / 2, 8, width - measuredWidth - 8)}px`,
+    );
   }
 
   function renderHoverCursor() {
     if (!hoverTimestamp) {
       hoverLine.style("display", "none");
+      hoverHeader.style("display", "none");
+      hoverHeaderText.style("display", "none");
       return;
     }
     const parsed = new Date(hoverTimestamp);
     if (Number.isNaN(parsed.valueOf())) {
       hoverLine.style("display", "none");
+      hoverHeader.style("display", "none");
+      hoverHeaderText.style("display", "none");
       return;
     }
     const x = xScale(parsed);
     if (!Number.isFinite(x) || x < 0 || x > innerWidth) {
       hoverLine.style("display", "none");
+      hoverHeader.style("display", "none");
+      hoverHeaderText.style("display", "none");
       return;
     }
+    const headerText = formatCursorTimestamp(parsed);
+    const headerWidth = clamp(headerText.length * 6.1 + 16, 126, 220);
+    const headerLeft = clamp(x - headerWidth / 2, 0, innerWidth - headerWidth);
     hoverLine.attr("x1", x).attr("x2", x).style("display", "block");
+    hoverHeader
+      .attr("x", headerLeft)
+      .attr("y", -CURSOR_HEADER_OFFSET + 3)
+      .attr("width", headerWidth)
+      .style("display", "block");
+    hoverHeaderText
+      .attr("x", headerLeft + 6)
+      .attr("y", -CURSOR_HEADER_OFFSET + 15)
+      .text(headerText)
+      .style("display", "block");
   }
 
   function renderPinnedCursors() {
@@ -806,19 +844,19 @@ function renderLineChartWithD3(d3, config) {
       if (!Number.isFinite(x) || x < 0 || x > innerWidth) return;
 
       const values = getValuesForTimestamp(pin.timestamp);
-      const headerText = formatUtcTimestamp(timestamp);
-      const valueTexts = values.map((row) => `${row.label}: ${formatValue(row.originalValue)}`);
-      const longest = Math.max(
-        headerText.length,
-        valueTexts.reduce((max, text) => Math.max(max, text.length), 0),
-      );
-      const boxWidth = clamp(longest * 6.3 + 18, 140, 360);
-      const headerHeight = 18;
+      const headerText = formatCursorTimestamp(timestamp);
+      const valueTexts = values.map((row) => formatValue(row.originalValue));
+      const headerWidth = clamp(headerText.length * 5.4 + 14, 96, 172);
+      const valuesLongest = valueTexts.reduce((max, text) => Math.max(max, text.length), 0);
+      const valuesWidth =
+        values.length === 0 ? 74 : clamp(valuesLongest * 5.2 + 12, 52, 96);
+      const headerHeight = CURSOR_HEADER_HEIGHT;
       const rowHeight = 14;
       const valuesHeight = Math.max(18, values.length * rowHeight + 8);
-      const headerY = 2;
+      const headerY = -CURSOR_HEADER_OFFSET + 3;
       const valuesY = headerY + headerHeight + 2;
-      const boxLeft = clamp(x - boxWidth / 2, 0, innerWidth - boxWidth);
+      const headerLeft = clamp(x - headerWidth / 2, 0, innerWidth - headerWidth);
+      const valuesLeft = clamp(x - valuesWidth / 2, 0, innerWidth - valuesWidth);
 
       const group = pinnedLayer.append("g").attr("class", "pinned-cursor-group");
 
@@ -833,9 +871,9 @@ function renderLineChartWithD3(d3, config) {
       group
         .append("rect")
         .attr("class", "pinned-cursor-header")
-        .attr("x", boxLeft)
+        .attr("x", headerLeft)
         .attr("y", headerY)
-        .attr("width", boxWidth)
+        .attr("width", headerWidth)
         .attr("height", headerHeight)
         .attr("rx", 3)
         .attr("ry", 3);
@@ -843,16 +881,16 @@ function renderLineChartWithD3(d3, config) {
       group
         .append("text")
         .attr("class", "pinned-cursor-header-text")
-        .attr("x", boxLeft + 6)
+        .attr("x", headerLeft + 6)
         .attr("y", headerY + 12)
         .text(headerText);
 
       group
         .append("rect")
         .attr("class", "pinned-cursor-values")
-        .attr("x", boxLeft)
+        .attr("x", valuesLeft)
         .attr("y", valuesY)
-        .attr("width", boxWidth)
+        .attr("width", valuesWidth)
         .attr("height", valuesHeight)
         .attr("rx", 3)
         .attr("ry", 3);
@@ -861,7 +899,7 @@ function renderLineChartWithD3(d3, config) {
         group
           .append("text")
           .attr("class", "pinned-cursor-empty")
-          .attr("x", boxLeft + 6)
+          .attr("x", valuesLeft + 6)
           .attr("y", valuesY + 12)
           .text("No visible traces");
       } else {
@@ -869,10 +907,10 @@ function renderLineChartWithD3(d3, config) {
           group
             .append("text")
             .attr("class", "pinned-cursor-row")
-            .attr("x", boxLeft + 6)
+            .attr("x", valuesLeft + 6)
             .attr("y", valuesY + 12 + rowIndex * rowHeight)
             .attr("fill", row.color)
-            .text(`${row.label}: ${formatValue(row.originalValue)}`);
+            .text(formatValue(row.originalValue));
         });
       }
 
@@ -880,9 +918,9 @@ function renderLineChartWithD3(d3, config) {
         id: pin.id,
         x,
         header: {
-          x: boxLeft,
+          x: headerLeft,
           y: headerY,
-          width: boxWidth,
+          width: headerWidth,
           height: headerHeight,
         },
       });
@@ -1374,13 +1412,21 @@ export function renderLineChart(config) {
     },
   };
   let disposed = false;
+  let d3Ref = null;
+
+  function rebuildChart() {
+    if (disposed || !d3Ref) return;
+    activeHandle.destroy?.();
+    activeHandle = renderLineChartWithD3(d3Ref, config);
+  }
 
   void loadD3Module()
     .then((d3) => {
       if (disposed) return;
+      d3Ref = d3;
       requestAnimationFrame(() => {
         if (disposed) return;
-        activeHandle = renderLineChartWithD3(d3, config);
+        rebuildChart();
       });
     })
     .catch(() => {
@@ -1395,7 +1441,8 @@ export function renderLineChart(config) {
     },
     resize() {
       if (disposed) return;
-      activeHandle.resize();
+      if (!d3Ref) return;
+      rebuildChart();
     },
     resetView() {
       if (disposed) return;

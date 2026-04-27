@@ -1181,6 +1181,9 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
       renderActionMenu();
       void load();
     },
+    resize() {
+      chartRenderHandle?.resize?.();
+    },
     destroy() {
       unregisterSync();
       if (inlineNoticeTimeout) {

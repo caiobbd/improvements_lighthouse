@@ -167,6 +167,7 @@ function getRuntime(container) {
   if (runtime) return runtime;
   runtime = {
     activePageId: null,
+    columns: null,
     syncBus: createSyncBus(),
     chartEntries: new Map(),
     addChartBlock: null,
@@ -193,12 +194,15 @@ export async function renderChartGrid(container, snapshot, actions) {
     runtime.addChartBlock = null;
     runtime.emptyStateNode?.remove?.();
     runtime.emptyStateNode = null;
+    runtime.columns = null;
     runtime.syncBus = createSyncBus();
     runtime.activePageId = page.id;
     container.innerHTML = "";
   }
 
   const columns = Math.max(1, Math.min(2, Number(page.gridColumns || 2)));
+  const columnsChanged = runtime.columns !== columns;
+  runtime.columns = columns;
   container.dataset.columns = String(columns);
 
   if (page.charts.length === 0) {
@@ -260,6 +264,14 @@ export async function renderChartGrid(container, snapshot, actions) {
   runtime.addChartBlock?.remove?.();
   runtime.addChartBlock = createAddChartBlock(() => actions.addChart(page.id), isAtLimit);
   container.append(runtime.addChartBlock);
+
+  if (columnsChanged) {
+    requestAnimationFrame(() => {
+      runtime.chartEntries.forEach((entry) => {
+        entry?.api?.resize?.();
+      });
+    });
+  }
 
   if (page.pendingScrollChartId && nodeByChartId.has(page.pendingScrollChartId)) {
     const target = nodeByChartId.get(page.pendingScrollChartId);
