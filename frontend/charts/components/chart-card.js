@@ -451,6 +451,9 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
   let chartRenderHandle = null;
   let latestLoadToken = 0;
   let inlineNoticeTimeout = null;
+  let resizeObserver = null;
+  let pendingResizeFrame = null;
+  let lastBodyWidth = 0;
   let loadState = cachedRuntime?.loadState || (currentSeries.length > 0 ? "has_data" : "idle");
   let lastQueryContextKey = cachedRuntime?.queryContextKey || null;
   let lastTagSetKey = cachedRuntime?.tagSetKey || "";
@@ -525,6 +528,37 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
       inlineNotice.textContent = "";
       inlineNoticeTimeout = null;
     }, INLINE_NOTICE_MS);
+  }
+
+  function measureBodyWidth() {
+    const rect = body.getBoundingClientRect();
+    return Math.round(rect.width || body.clientWidth || 0);
+  }
+
+  function scheduleChartResize(force = false) {
+    if (pendingResizeFrame) {
+      window.cancelAnimationFrame(pendingResizeFrame);
+    }
+
+    pendingResizeFrame = window.requestAnimationFrame(() => {
+      pendingResizeFrame = null;
+      if (!body.isConnected || !chartRenderHandle?.resize) return;
+      const nextWidth = measureBodyWidth();
+      if (!nextWidth) return;
+      if (!force && Math.abs(nextWidth - lastBodyWidth) < 1) return;
+      lastBodyWidth = nextWidth;
+      chartRenderHandle.resize();
+    });
+  }
+
+  function clearXInteractionState() {
+    interactionState.currentXDomain = null;
+    interactionState.previewXDomain = null;
+    interactionState.hoverTimestamp = null;
+    interactionState.pinnedCursors = [];
+    chartRenderHandle?.setPreviewXDomain?.(null);
+    chartRenderHandle?.setHoverTimestamp?.(null);
+    chartRenderHandle?.setPinnedCursors?.([]);
   }
 
   function persistChartPatch(patch) {
@@ -705,6 +739,7 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
     }
 
     body.innerHTML = "";
+    lastBodyWidth = measureBodyWidth();
     const alarmSpan =
       String(page?.pageType || "").toLowerCase() === "alarm" && page?.alarmMeta
         ? {
@@ -785,6 +820,7 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
     }
     renderYAutoScaleButton();
     ensureLoadingOverlay();
+    scheduleChartResize();
   }
 
   function clearDropState() {
@@ -1002,6 +1038,7 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
       loadState = "idle";
       currentSeries = [];
       hiddenSeries.clear();
+      clearXInteractionState();
       interactionState.currentYDomain = null;
       lastQueryContextKey = queryContextKey;
       lastTagSetKey = tagSetKey;
@@ -1072,6 +1109,9 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
       lastQueryContextKey = queryContextKey;
       lastTagSetKey = tagSetKey;
       loadState = currentSeries.length > 0 ? "has_data" : "no_data";
+      if (queryContextChanged) {
+        clearXInteractionState();
+      }
       if (currentSeries.length > 0) {
         interactionState.currentYDomain =
           chart.normalizationEnabled === true ? [0, 1] : computeYDomainFromSeries(currentSeries);
@@ -1164,6 +1204,13 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
 
   wireCardDropHandling();
 
+  if (typeof ResizeObserver === "function") {
+    resizeObserver = new ResizeObserver(() => {
+      scheduleChartResize();
+    });
+    resizeObserver.observe(body);
+  }
+
   card.append(header, body, inlineNotice, footer);
   drawChart();
   renderLegend();
@@ -1182,10 +1229,16 @@ export function createChartCard({ chart, page, actions, syncBus = null, forceRef
       void load();
     },
     resize() {
-      chartRenderHandle?.resize?.();
+      scheduleChartResize(true);
     },
     destroy() {
       unregisterSync();
+      resizeObserver?.disconnect?.();
+      resizeObserver = null;
+      if (pendingResizeFrame) {
+        window.cancelAnimationFrame(pendingResizeFrame);
+        pendingResizeFrame = null;
+      }
       if (inlineNoticeTimeout) {
         window.clearTimeout(inlineNoticeTimeout);
         inlineNoticeTimeout = null;

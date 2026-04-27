@@ -406,7 +406,8 @@ function renderLineChartWithD3(d3, config) {
     bottom: 36,
     left: splitMode ? 56 + (splitAxisCount - 1) * 24 : 44,
   };
-  const width = Math.max(340, container.clientWidth || 720);
+  const measuredWidth = Math.floor(container.getBoundingClientRect?.().width || container.clientWidth || 0);
+  const width = Math.max(1, measuredWidth || 720);
   const innerWidth = Math.max(10, width - margin.left - margin.right);
   const innerHeight = Math.max(10, height - margin.top - margin.bottom);
 

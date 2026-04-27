@@ -365,6 +365,12 @@
   align-items: start;
   align-content: start;
   grid-auto-rows: auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chart-grid > * {
+  min-width: 0;
 }
 
 .chart-grid[data-columns="1"] {

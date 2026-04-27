@@ -279,6 +279,7 @@
   justify-content: space-between;
   gap: var(--space-2);
   align-items: flex-start;
+  min-width: 0;
 }
 
 .chart-title-group {
@@ -287,9 +288,12 @@
   align-items: center;
   gap: var(--space-1);
   flex: 1;
+  overflow: hidden;
 }
 
 .chart-card-title {
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
   font-size: var(--text-sm);
   font-weight: 700;
@@ -388,10 +392,18 @@
   border: 1px solid var(--chart-grid);
   border-radius: var(--radius-sm);
   background: var(--chart-bg);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 320px;
   height: 320px;
   position: relative;
   overflow: hidden;
+}
+
+.chart-card-body > svg {
+  width: 100%;
+  max-width: 100%;
 }
 
 .chart-body-loading-banner {
@@ -450,6 +462,7 @@
   position: relative;
   flex-shrink: 0;
   align-items: center;
+  max-width: 100%;
 }
 
 .chart-help {
