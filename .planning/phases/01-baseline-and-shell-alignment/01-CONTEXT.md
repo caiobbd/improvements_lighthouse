@@ -71,9 +71,9 @@ Deliver a functional Lighthouse baseline focused on a single `Charts` tab, inclu
 - `.tmp/reference/tab-charts.css` - Tab charts structure and visual details
 
 ### Existing project docs
-- `spec_mvbac_overview_mvp.md` - Existing operational charting/UI direction already accepted in this repo
-- `spec_mvbac_production_gas.md` - Existing drilldown interaction conventions and domain vocabulary
-- `plan_frontpage_ship.md` - Prior stakeholder rationale and UX priorities
+- `.planning/PROJECT.md` - Active project scope and constraints
+- `.planning/REQUIREMENTS.md` - Active charts and alarm recognition requirements
+- `.planning/ROADMAP.md` - Active charts-only phase progression
 
 ### Design palette sources
 - `C:\Users\CaioBorges\OneDrive - Shape Digital\1. Pessoal\5. Estudo\design\our world in data - example 1.png`
@@ -92,13 +92,13 @@ Deliver a functional Lighthouse baseline focused on a single `Charts` tab, inclu
 ## Existing Code Insights
 
 ### Reusable Assets
-- `index.html` and `production-gas.html` already include Lighthouse shell elements (header/sidebar structure).
-- `css/styles.css` already contains dark-theme tokens and component conventions.
-- `js/mock-data.js` provides initial patterns for chart dataset organization.
+- `frontend/charts/index.html` contains the active Charts page shell.
+- `frontend/charts/styles/*.css` contains active theme tokens and component conventions.
+- `backend/app/api/charts.py` contains seeded chart payload patterns and API contract examples.
 
 ### Established Patterns
-- Existing pages are static HTML + JS with Chart.js and modal interactions.
-- Sidebar navigation between pages is already implemented and can be reused for Charts-tab first iteration.
+- Active app uses static HTML + JS modules + D3 for chart rendering.
+- Sidebar, tab, and modal interactions are implemented directly in the Charts workspace.
 
 ### Integration Points
 - New charts-focused frontend modules can be introduced while preserving current shell markup conventions.

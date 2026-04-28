@@ -224,7 +224,7 @@ store.persist();
 - `C:\Users\CaioBorges\_pgms\shape-workspace-api\workspace_api\profiling2\core.py`
 
 ### Secondary (MEDIUM confidence)
-- Existing project implementation files (`index.html`, `production-gas.html`, `css/styles.css`, `js/mock-data.js`)
+- Existing charts implementation files (`frontend/charts/index.html`, `frontend/charts/app.js`, `backend/app/api/charts.py`)
 
 ### Tertiary (LOW confidence - needs validation)
 - None

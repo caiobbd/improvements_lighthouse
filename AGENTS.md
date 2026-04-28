@@ -1,18 +1,18 @@
 <!-- GSD:project-start source:PROJECT.md -->
 ## Project
 
-**Lighthouse Improvements - MVBAC Operations Frontend**
+**Lighthouse Improvements - Charts Operations Frontend**
 
-This project evolves the Lighthouse ship experience for MVBAC, focusing on an operations-first interface that highlights production behavior and actionable alarms. It includes two connected pages: the MVBAC Overview dashboard and the Production Gas drilldown page. The goal is to make Lighthouse more useful in day-to-day decisions by prioritizing KPI visibility and exception handling.
+This project evolves the Lighthouse Charts experience for operations users. The active product surface is the Charts workspace (`frontend/charts`) with the FastAPI backend (`backend/app`) focused on API-backed charting, sensor plotting, and alarm/event triage workflows.
 
 **Core Value:** Users can quickly spot operational deviations and act on them without digging through decorative or low-signal UI.
 
 ### Constraints
 
 - **Design System**: Keep Lighthouse dark theme and information hierarchy recognizable - preserves user familiarity.
-- **Architecture**: Current stack is static HTML/CSS/JS with Chart.js - no framework migration in this milestone.
-- **Scope**: Implement only Overview + Production Gas pages for MVBAC - limits risk and delivery time.
-- **Data**: MVP uses mocked data with realistic ranges and alarm payloads - backend contracts are not finalized.
+- **Architecture**: Current stack is static HTML/CSS/JS + D3 frontend and FastAPI backend - no framework migration in this milestone.
+- **Scope**: Charts workspace and alarm recognition/event flows only; legacy two-page scope is out of scope.
+- **Data**: Keep API-backed chart contracts stable while supporting deterministic fallback behavior for missing alarm fields.
 - **Usability**: Operationally relevant content must remain above the fold where possible - core stakeholder requirement.
 <!-- GSD:project-end -->
 
