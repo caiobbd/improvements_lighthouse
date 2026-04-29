@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import Thread
@@ -18,6 +19,8 @@ from backend.app.models.charts import (
     EquipmentSensorCategory,
     EquipmentTreeNode,
     ItemAttribute,
+    SensorContextRow,
+    SensorContextThreshold,
     Series,
     SeriesPoint,
 )
@@ -222,6 +225,29 @@ class ProfilingAdapter:
         return {}
 
     @staticmethod
+    def _parse_json_like_list(value: Any) -> list[dict[str, Any]]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [entry for entry in value if isinstance(entry, dict)]
+        if isinstance(value, dict):
+            return [dict(value)]
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+            for parser in (json.loads, ast.literal_eval):
+                try:
+                    parsed = parser(text)
+                except Exception:
+                    continue
+                if isinstance(parsed, list):
+                    return [entry for entry in parsed if isinstance(entry, dict)]
+                if isinstance(parsed, dict):
+                    return [dict(parsed)]
+        return []
+
+    @staticmethod
     def _is_missing_value(value: Any) -> bool:
         if value is None:
             return True
@@ -263,6 +289,171 @@ class ProfilingAdapter:
             return top_level_value
 
         return None
+
+    @staticmethod
+    def _normalize_threshold_key(name: Any) -> str | None:
+        if name is None:
+            return None
+        text = str(name).strip().lower()
+        if not text:
+            return None
+        compact = re.sub(r"[^a-z0-9]", "", text)
+        if not compact:
+            return None
+        if "hihi" in compact or "highhigh" in compact:
+            return "hihi"
+        if "lolo" in compact or "lowlow" in compact:
+            return "lolo"
+        if compact in {"hi", "high"} or compact.endswith("prealarmhi"):
+            return "hi"
+        if compact in {"lo", "low"} or compact.endswith("prealarmlo"):
+            return "lo"
+        if compact in {"minimum", "min"}:
+            return "minimum"
+        if compact in {"maximum", "max"}:
+            return "maximum"
+        if compact in {"target", "setpoint"}:
+            return "target"
+        return None
+
+    @classmethod
+    def _to_float_or_none(cls, value: Any) -> float | None:
+        if cls._is_missing_value(value):
+            return None
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return None
+        if pd.isna(parsed):
+            return None
+        return parsed
+
+    @classmethod
+    def _to_bool_or_none(cls, value: Any) -> bool | None:
+        if cls._is_missing_value(value):
+            return None
+        if isinstance(value, bool):
+            return value
+        normalized = str(value).strip().lower()
+        if normalized in {"true", "1", "yes", "y"}:
+            return True
+        if normalized in {"false", "0", "no", "n"}:
+            return False
+        return None
+
+    @classmethod
+    def _resolve_threshold_value(cls, payload: dict[str, Any]) -> float | None:
+        for key in ("value", "threshold_value", "setpoint", "limit"):
+            if key in payload:
+                parsed = cls._to_float_or_none(payload.get(key))
+                if parsed is not None:
+                    return parsed
+        return None
+
+    @classmethod
+    def _resolve_threshold_updated_at(cls, payload: dict[str, Any]) -> datetime | None:
+        for key in ("updated_at", "updatedAt", "updated", "created_at", "createdAt"):
+            if key in payload:
+                parsed = cls._parse_datetime(payload.get(key))
+                if parsed is not None:
+                    return parsed
+        return None
+
+    @classmethod
+    def _resolve_threshold_is_external(cls, payload: dict[str, Any]) -> bool | None:
+        for key in ("is_external", "isExternal", "external"):
+            if key in payload:
+                parsed = cls._to_bool_or_none(payload.get(key))
+                if parsed is not None:
+                    return parsed
+        return None
+
+    @classmethod
+    def _resolve_threshold_unit(cls, payload: dict[str, Any]) -> str | None:
+        for key in ("unit", "unit_of_measurement", "uom"):
+            if key in payload:
+                parsed = cls._string_or_none(payload.get(key))
+                if parsed is not None:
+                    return parsed
+        return None
+
+    @classmethod
+    def _build_threshold_context(
+        cls,
+        sub_attributes: Any,
+        *,
+        fallback_unit: str | None = None,
+    ) -> dict[str, SensorContextThreshold]:
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for entry in cls._parse_json_like_list(sub_attributes):
+            key = cls._normalize_threshold_key(entry.get("name") or entry.get("key"))
+            if not key:
+                continue
+            grouped.setdefault(key, []).append(entry)
+
+        threshold_context: dict[str, SensorContextThreshold] = {}
+        for threshold_key, candidates in grouped.items():
+            scored: list[tuple[tuple[int, int, float], dict[str, Any]]] = []
+            for candidate in candidates:
+                value = cls._resolve_threshold_value(candidate)
+                is_external = cls._resolve_threshold_is_external(candidate)
+                updated_at = cls._resolve_threshold_updated_at(candidate)
+                sort_key = (
+                    1 if value is not None else 0,
+                    1 if is_external is False else 0,
+                    updated_at.timestamp() if updated_at is not None else float("-inf"),
+                )
+                scored.append((sort_key, candidate))
+            _, winner = max(scored, key=lambda row: row[0])
+            winner_value = cls._resolve_threshold_value(winner)
+            winner_updated_at = cls._resolve_threshold_updated_at(winner)
+            winner_is_external = cls._resolve_threshold_is_external(winner)
+            winner_unit = cls._resolve_threshold_unit(winner) or fallback_unit
+            threshold_context[threshold_key] = SensorContextThreshold(
+                key=threshold_key,
+                value=winner_value,
+                unit=winner_unit,
+                source="sub_attributes",
+                is_external=winner_is_external,
+                updated_at=winner_updated_at,
+            )
+
+        return threshold_context
+
+    @staticmethod
+    def _date_bounds(start_date: str, end_date: str) -> tuple[datetime, datetime]:
+        start = datetime.combine(pd.Timestamp(start_date).date(), datetime.min.time())
+        end = datetime.combine(pd.Timestamp(end_date).date(), datetime.max.time())
+        return start, end
+
+    @classmethod
+    def _compute_last_value_and_avg_1d(
+        cls,
+        series: list[Series],
+        *,
+        start_date: str,
+        end_date: str,
+    ) -> tuple[float | None, float | None]:
+        start_bound, end_bound = cls._date_bounds(start_date, end_date)
+        points: list[SeriesPoint] = []
+        for line in series:
+            points.extend(line.points)
+
+        in_window = [point for point in points if start_bound <= point.timestamp <= end_bound]
+        if in_window:
+            in_window.sort(key=lambda point: point.timestamp)
+            last_value = float(in_window[-1].value)
+        else:
+            last_value = None
+
+        avg_start = end_bound - timedelta(days=1)
+        avg_points = [
+            float(point.value)
+            for point in in_window
+            if avg_start <= point.timestamp <= end_bound
+        ]
+        avg_1d = float(sum(avg_points) / len(avg_points)) if avg_points else None
+        return last_value, avg_1d
 
     @staticmethod
     def _parse_datetime(value: Any) -> datetime | None:
@@ -748,6 +939,96 @@ class ProfilingAdapter:
         with self._attribute_cache_lock:
             self._attribute_cache[cache_key] = (time.monotonic(), self._clone_attributes(attributes))
         return self._clone_attributes(attributes)
+
+    def build_sensor_context_row(
+        self,
+        *,
+        tag_key: str,
+        item_id: str,
+        asset_name: str,
+        label: str,
+        start_date: str,
+        end_date: str,
+        window: str,
+        attribute_id: str | None = None,
+        attribute_name: str | None = None,
+    ) -> SensorContextRow:
+        normalized_item_id = str(item_id or "").strip()
+        selected_attribute_id = str(attribute_id or "").strip() or None
+        selected_attribute_name = str(attribute_name or "").strip() or None
+
+        attributes = self.get_item_attributes(normalized_item_id, asset_name=asset_name)
+        selected: ItemAttribute | None = None
+        if selected_attribute_id:
+            selected = next((attribute for attribute in attributes if attribute.id == selected_attribute_id), None)
+        elif selected_attribute_name:
+            lowered = selected_attribute_name.lower()
+            selected = next(
+                (attribute for attribute in attributes if attribute.name.strip().lower() == lowered),
+                None,
+            )
+        if selected is None:
+            raise ProfilingAdapterError(
+                "Attribute not found. Provide a valid attribute_id or attribute_name from /item-attributes."
+            )
+
+        try:
+            frame = self.workspace.get_item_attributes(normalized_item_id)
+        except Exception as exc:
+            raise ProfilingAdapterError(f"Failed to fetch raw attribute context for '{normalized_item_id}': {exc}") from exc
+
+        row_payload: dict[str, Any] | None = None
+        if frame is not None and not frame.empty:
+            if selected.id and "id" in frame.columns:
+                exact = frame[frame["id"].astype(str) == str(selected.id)]
+                if not exact.empty:
+                    row_payload = exact.iloc[0].to_dict()
+            if row_payload is None and selected.name and "name" in frame.columns:
+                exact_name = frame[
+                    frame["name"].astype(str).str.strip().str.lower() == selected.name.strip().lower()
+                ]
+                if not exact_name.empty:
+                    row_payload = exact_name.iloc[0].to_dict()
+        if row_payload is None:
+            row_payload = {}
+
+        unit_of_measurement = self._string_or_none(
+            row_payload.get("unit_of_measurement") if isinstance(row_payload, dict) else None
+        )
+        threshold_context = self._build_threshold_context(
+            row_payload.get("sub_attributes") if isinstance(row_payload, dict) else None,
+            fallback_unit=unit_of_measurement,
+        )
+        series = self.get_timeseries_from_attribute(
+            normalized_item_id,
+            start_date=start_date,
+            end_date=end_date,
+            window=window,
+            attribute_id=selected.id,
+        )
+        last_value, avg_1d = self._compute_last_value_and_avg_1d(
+            series,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        return SensorContextRow(
+            tag_key=tag_key,
+            asset_name=asset_name,
+            item_id=normalized_item_id,
+            attribute_id=selected.id,
+            attribute_name=selected.name,
+            label=label,
+            reference=selected.reference,
+            data_source=selected.data_source,
+            unit_of_measurement=unit_of_measurement,
+            categories=list(selected.categories),
+            last_value=last_value,
+            avg_1d=avg_1d,
+            thresholds=threshold_context,
+            warnings=[],
+            error=None,
+        )
 
     def get_equipment_tree(
         self, ancestor_id: str | None = None, lean: bool = False

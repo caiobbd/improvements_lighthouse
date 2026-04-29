@@ -4,7 +4,7 @@ import json
 from datetime import date, datetime, timedelta
 from functools import lru_cache
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from backend.app.models.charts import (
     AssetSearchResponse,
@@ -19,6 +19,9 @@ from backend.app.models.charts import (
     IntelEventsResponse,
     ItemAttributesResponse,
     ItemResolutionResponse,
+    SensorContextBatchRequest,
+    SensorContextBatchResponse,
+    SensorContextRow,
     TimeSeriesBatchResponse,
     TimeSeriesBatchTag,
     TimeSeriesResponse,
@@ -723,6 +726,74 @@ def get_timeseries_batch(
         window=requested_window,
         effective_window=effective_window,
         tags=resolved_tags,
+        warnings=warnings,
+    )
+
+
+@router.post("/sensor-context-batch", response_model=SensorContextBatchResponse)
+def get_sensor_context_batch(
+    payload: SensorContextBatchRequest = Body(...),
+    adapter: ProfilingAdapter = Depends(get_profiling_adapter),
+) -> SensorContextBatchResponse:
+    if not payload.tags:
+        raise HTTPException(status_code=422, detail="Provide a non-empty tags array.")
+
+    safe_start, safe_end = _default_date_window(payload.start_date, payload.end_date)
+    requested_window = str(payload.window or "").strip().lower() or "auto"
+    effective_window = _resolve_effective_window(requested_window, safe_start, safe_end)
+
+    rows: list[SensorContextRow] = []
+    warnings: list[str] = []
+    for index, tag in enumerate(payload.tags, start=1):
+        item_id = str(tag.item_id or "").strip()
+        attribute_id = str(tag.attribute_id or "").strip() or None
+        attribute_name = str(tag.attribute_name or "").strip() or None
+        if not item_id or (not attribute_id and not attribute_name):
+            raise HTTPException(
+                status_code=422,
+                detail=f"Tag index {index}: item_id and attribute_id/attribute_name are required.",
+            )
+
+        tag_key = str(tag.tag_key or "").strip()
+        if not tag_key:
+            tag_key = f"{item_id}::{attribute_id or (attribute_name or '').lower()}"
+        label = str(tag.label or attribute_name or attribute_id or f"tag-{index}").strip()
+        asset_name = str(tag.asset_name or item_id).strip()
+        try:
+            row = adapter.build_sensor_context_row(
+                tag_key=tag_key,
+                item_id=item_id,
+                asset_name=asset_name,
+                label=label,
+                start_date=safe_start.isoformat(),
+                end_date=safe_end.isoformat(),
+                window=effective_window,
+                attribute_id=attribute_id,
+                attribute_name=attribute_name,
+            )
+            rows.append(row)
+        except (UnknownAssetError, WorkspaceUnavailableError, ProfilingAdapterError) as exc:
+            message = str(exc)
+            rows.append(
+                SensorContextRow(
+                    tag_key=tag_key,
+                    asset_name=asset_name,
+                    item_id=item_id,
+                    attribute_id=attribute_id,
+                    attribute_name=attribute_name,
+                    label=label,
+                    warnings=[message],
+                    error=message,
+                )
+            )
+            warnings.append(f"Tag {tag_key}: {message}")
+
+    return SensorContextBatchResponse(
+        start_date=safe_start,
+        end_date=safe_end,
+        window=requested_window,
+        effective_window=effective_window,
+        rows=rows,
         warnings=warnings,
     )
 

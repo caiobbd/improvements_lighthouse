@@ -158,6 +158,59 @@ class TimeSeriesBatchResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class SensorContextBatchTag(BaseModel):
+    tag_key: str | None = None
+    asset_name: str = ""
+    item_id: str
+    attribute_id: str | None = None
+    attribute_name: str | None = None
+    label: str | None = None
+
+
+class SensorContextBatchRequest(BaseModel):
+    tags: list[SensorContextBatchTag] = Field(default_factory=list)
+    start_date: date | None = None
+    end_date: date | None = None
+    window: str = "auto"
+
+
+class SensorContextThreshold(BaseModel):
+    key: str
+    value: float | None = None
+    unit: str | None = None
+    source: str = "sub_attributes"
+    is_external: bool | None = None
+    updated_at: datetime | None = None
+
+
+class SensorContextRow(BaseModel):
+    tag_key: str
+    asset_name: str
+    item_id: str
+    attribute_id: str | None = None
+    attribute_name: str | None = None
+    label: str
+    reference: str | None = None
+    data_source: str | None = None
+    unit_of_measurement: str | None = None
+    categories: list[str] = Field(default_factory=list)
+    last_value: float | None = None
+    avg_1d: float | None = None
+    thresholds: dict[str, SensorContextThreshold] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+    error: str | None = None
+
+
+class SensorContextBatchResponse(BaseModel):
+    start_date: date
+    end_date: date
+    window: str
+    effective_window: str
+    rows: list[SensorContextRow] = Field(default_factory=list)
+    source: str = "workspace-profiling"
+    warnings: list[str] = Field(default_factory=list)
+
+
 class ChartSelectedTag(BaseModel):
     asset_name: str
     item_id: str
