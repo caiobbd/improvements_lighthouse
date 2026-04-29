@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.app.api.charts import get_profiling_adapter
+from backend.app.api.charts import get_custom_alarms_store, get_profiling_adapter
 from backend.app.models.charts import SensorContextRow, SensorContextThreshold
 
 
@@ -54,9 +54,26 @@ class _FakeAdapter:
         )
 
 
+class _FakeCustomAlarmStore:
+    def __init__(self, record: dict[str, object] | None = None) -> None:
+        self._record = record
+
+    def get_current(self, _: str) -> dict[str, object] | None:
+        return self._record
+
+
 def test_sensor_context_batch_returns_enriched_rows(client) -> None:
     fake = _FakeAdapter()
+    fake_custom_store = _FakeCustomAlarmStore(
+        {
+            "attribute_id": "attr-1",
+            "custom_hi": 91.0,
+            "custom_lo": 13.0,
+            "updated_date": "2026-01-03T10:00:00+00:00",
+        }
+    )
     client.app.dependency_overrides[get_profiling_adapter] = lambda: fake
+    client.app.dependency_overrides[get_custom_alarms_store] = lambda: fake_custom_store
     payload = {
         "start_date": "2026-01-01",
         "end_date": "2026-01-03",
@@ -80,9 +97,12 @@ def test_sensor_context_batch_returns_enriched_rows(client) -> None:
     assert body["rows"][0]["last_value"] == 70.0
     assert body["rows"][0]["avg_1d"] == 68.0
     assert body["rows"][0]["thresholds"]["hi"]["value"] == 85.0
+    assert body["rows"][0]["thresholds"]["custom_hi"]["value"] == 91.0
+    assert body["rows"][0]["thresholds"]["custom_lo"]["value"] == 13.0
     assert fake.calls[0]["start_date"] == "2026-01-01"
     assert fake.calls[0]["end_date"] == "2026-01-03"
     assert fake.calls[0]["window"] == "6h"
+    client.app.dependency_overrides.clear()
 
 
 def test_sensor_context_batch_requires_non_empty_tags(client) -> None:

@@ -211,6 +211,26 @@ class SensorContextBatchResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class CustomAlarmUpsertRequest(BaseModel):
+    custom_hi: float | None = None
+    custom_lo: float | None = None
+
+
+class CustomAlarmRecord(BaseModel):
+    attribute_id: str
+    custom_hi: float | None = None
+    custom_lo: float | None = None
+    created_date: datetime
+    updated_date: datetime
+    version_n: int
+    user: str = "unknown"
+
+
+class CustomAlarmVersionsResponse(BaseModel):
+    attribute_id: str
+    versions: list[CustomAlarmRecord] = Field(default_factory=list)
+
+
 class ChartSelectedTag(BaseModel):
     asset_name: str
     item_id: str

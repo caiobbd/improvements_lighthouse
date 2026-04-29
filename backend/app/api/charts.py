@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import date, datetime, timedelta
 from functools import lru_cache
+from pathlib import Path
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
@@ -12,6 +13,9 @@ from backend.app.models.charts import (
     ChartPage,
     ChartPagesResponse,
     ChartSelectedTag,
+    CustomAlarmRecord,
+    CustomAlarmUpsertRequest,
+    CustomAlarmVersionsResponse,
     EquipmentSensorsResponse,
     EquipmentTreeResponse,
     HealthResponse,
@@ -22,6 +26,7 @@ from backend.app.models.charts import (
     SensorContextBatchRequest,
     SensorContextBatchResponse,
     SensorContextRow,
+    SensorContextThreshold,
     TimeSeriesBatchResponse,
     TimeSeriesBatchTag,
     TimeSeriesResponse,
@@ -32,6 +37,7 @@ from backend.app.services.profiling_adapter import (
     UnknownAssetError,
     WorkspaceUnavailableError,
 )
+from backend.app.services.custom_alarms_store import CustomAlarmsStore, CustomAlarmsStoreError
 
 router = APIRouter()
 SUPPORTED_WINDOWS = {"15m", "1h", "6h", "1d"}
@@ -40,6 +46,12 @@ SUPPORTED_WINDOWS = {"15m", "1h", "6h", "1d"}
 @lru_cache(maxsize=1)
 def get_profiling_adapter() -> ProfilingAdapter:
     return ProfilingAdapter()
+
+
+@lru_cache(maxsize=1)
+def get_custom_alarms_store() -> CustomAlarmsStore:
+    db_path = Path(__file__).resolve().parents[1] / "data" / "custom_alarms.db"
+    return CustomAlarmsStore(db_path)
 
 
 def _default_date_window(start_date: date | None, end_date: date | None) -> tuple[date, date]:
@@ -734,6 +746,7 @@ def get_timeseries_batch(
 def get_sensor_context_batch(
     payload: SensorContextBatchRequest = Body(...),
     adapter: ProfilingAdapter = Depends(get_profiling_adapter),
+    custom_store: CustomAlarmsStore = Depends(get_custom_alarms_store),
 ) -> SensorContextBatchResponse:
     if not payload.tags:
         raise HTTPException(status_code=422, detail="Provide a non-empty tags array.")
@@ -771,6 +784,29 @@ def get_sensor_context_batch(
                 attribute_id=attribute_id,
                 attribute_name=attribute_name,
             )
+            custom_alarm = custom_store.get_current(attribute_id or row.attribute_id or "")
+            custom_updated_at = None
+            if custom_alarm and custom_alarm.get("updated_date"):
+                try:
+                    custom_updated_at = datetime.fromisoformat(
+                        str(custom_alarm["updated_date"]).replace("Z", "+00:00")
+                    ).replace(tzinfo=None)
+                except ValueError:
+                    custom_updated_at = None
+            row.thresholds["custom_hi"] = row.thresholds.get("custom_hi") or SensorContextThreshold(
+                key="custom_hi",
+                value=float(custom_alarm["custom_hi"]) if custom_alarm and custom_alarm.get("custom_hi") is not None else None,
+                unit=row.unit_of_measurement,
+                source="custom",
+                updated_at=custom_updated_at,
+            )
+            row.thresholds["custom_lo"] = row.thresholds.get("custom_lo") or SensorContextThreshold(
+                key="custom_lo",
+                value=float(custom_alarm["custom_lo"]) if custom_alarm and custom_alarm.get("custom_lo") is not None else None,
+                unit=row.unit_of_measurement,
+                source="custom",
+                updated_at=custom_updated_at,
+            )
             rows.append(row)
         except (UnknownAssetError, WorkspaceUnavailableError, ProfilingAdapterError) as exc:
             message = str(exc)
@@ -787,6 +823,21 @@ def get_sensor_context_batch(
                 )
             )
             warnings.append(f"Tag {tag_key}: {message}")
+        except CustomAlarmsStoreError as exc:
+            message = str(exc)
+            warnings.append(f"Tag {tag_key}: {message}")
+            rows.append(
+                SensorContextRow(
+                    tag_key=tag_key,
+                    asset_name=asset_name,
+                    item_id=item_id,
+                    attribute_id=attribute_id,
+                    attribute_name=attribute_name,
+                    label=label,
+                    warnings=[message],
+                    error=message,
+                )
+            )
 
     return SensorContextBatchResponse(
         start_date=safe_start,
@@ -795,6 +846,54 @@ def get_sensor_context_batch(
         effective_window=effective_window,
         rows=rows,
         warnings=warnings,
+    )
+
+
+@router.get("/custom-alarms/{attribute_id}", response_model=CustomAlarmRecord)
+def get_custom_alarm(
+    attribute_id: str,
+    custom_store: CustomAlarmsStore = Depends(get_custom_alarms_store),
+) -> CustomAlarmRecord:
+    try:
+        current = custom_store.get_current(attribute_id)
+    except CustomAlarmsStoreError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if current is None:
+        raise HTTPException(status_code=404, detail=f"Custom alarm not found for '{attribute_id}'.")
+    return CustomAlarmRecord(**current)
+
+
+@router.put("/custom-alarms/{attribute_id}", response_model=CustomAlarmRecord)
+def put_custom_alarm(
+    attribute_id: str,
+    payload: CustomAlarmUpsertRequest,
+    custom_store: CustomAlarmsStore = Depends(get_custom_alarms_store),
+) -> CustomAlarmRecord:
+    try:
+        current = custom_store.upsert(
+            attribute_id,
+            custom_hi=payload.custom_hi,
+            custom_lo=payload.custom_lo,
+            user="unknown",
+        )
+    except CustomAlarmsStoreError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CustomAlarmRecord(**current)
+
+
+@router.get("/custom-alarms/{attribute_id}/versions", response_model=CustomAlarmVersionsResponse)
+def get_custom_alarm_versions(
+    attribute_id: str,
+    limit: int = Query(default=20, ge=1, le=20),
+    custom_store: CustomAlarmsStore = Depends(get_custom_alarms_store),
+) -> CustomAlarmVersionsResponse:
+    try:
+        versions = custom_store.list_versions(attribute_id, limit=limit)
+    except CustomAlarmsStoreError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return CustomAlarmVersionsResponse(
+        attribute_id=attribute_id,
+        versions=[CustomAlarmRecord(**entry) for entry in versions],
     )
 
 
