@@ -278,6 +278,28 @@ function formatValue(value) {
   return Number(value).toFixed(2);
 }
 
+function normalizeThresholdLines(lines) {
+  return (Array.isArray(lines) ? lines : [])
+    .map((line) => {
+      const value = Number(line?.value);
+      if (!Number.isFinite(value)) return null;
+      return {
+        key: String(line?.key || line?.thresholdKey || line?.name || "").trim(),
+        name: String(line?.name || line?.thresholdKey || "").trim(),
+        value,
+        color: String(line?.color || "").trim() || "#d9b84a",
+        dash: String(line?.dash || "").trim() || "6 4",
+      };
+    })
+    .filter(Boolean);
+}
+
+function collectFiniteThresholdValues(lines) {
+  return (Array.isArray(lines) ? lines : [])
+    .map((line) => Number(line?.value))
+    .filter((value) => Number.isFinite(value));
+}
+
 function buildVisibleRenderLines(lines, xDomain, normalizationEnabled) {
   return lines.map((line) => {
     const visiblePoints = line.points.filter(
@@ -311,7 +333,7 @@ function buildVisibleRenderLines(lines, xDomain, normalizationEnabled) {
   });
 }
 
-function computeSharedYDomain(renderLines, xDomain, normalizationEnabled) {
+function computeSharedYDomain(renderLines, xDomain, normalizationEnabled, thresholdLines = []) {
   if (normalizationEnabled) return [0, 1];
 
   const visibleValues = renderLines.flatMap((line) =>
@@ -319,14 +341,17 @@ function computeSharedYDomain(renderLines, xDomain, normalizationEnabled) {
       .filter((point) => point.timestamp >= xDomain[0] && point.timestamp <= xDomain[1])
       .map((point) => point.value),
   );
-  if (visibleValues.length === 0) {
+  const thresholdValues = collectFiniteThresholdValues(thresholdLines);
+  const domainValues = [...visibleValues, ...thresholdValues];
+  if (domainValues.length === 0) {
     return [0, 1];
   }
-  return padNumericDomain([Math.min(...visibleValues), Math.max(...visibleValues)]);
+  return padNumericDomain([Math.min(...domainValues), Math.max(...domainValues)]);
 }
 
-function computeFullYBounds(lines) {
+function computeFullYBounds(lines, thresholdLines = []) {
   const values = lines.flatMap((line) => line.points.map((point) => point.value));
+  values.push(...collectFiniteThresholdValues(thresholdLines));
   if (values.length === 0) return [0, 1];
   return padNumericDomain([Math.min(...values), Math.max(...values)]);
 }
@@ -365,6 +390,7 @@ function renderLineChartWithD3(d3, config) {
     interactionState = {},
     normalizationEnabled = false,
     splitYAxisEnabled = false,
+    thresholdLines = [],
     previewXDomain = null,
     cursorState = {},
     fallbackXDomain = null,
@@ -377,6 +403,7 @@ function renderLineChartWithD3(d3, config) {
   } = config;
 
   const parsedLines = parseLines(series, hiddenSeries);
+  const parsedThresholdLines = normalizeThresholdLines(thresholdLines);
   const hasSeries = parsedLines.length > 0;
 
   const fullXDomain = hasSeries
@@ -390,7 +417,7 @@ function renderLineChartWithD3(d3, config) {
           cloneTimeDomain(previewXDomain) ||
           fallbackXDomain,
       );
-  const fullYBounds = hasSeries ? computeFullYBounds(parsedLines) : [0, 1];
+  const fullYBounds = hasSeries ? computeFullYBounds(parsedLines, parsedThresholdLines) : [0, 1];
   const normalizedAlarmSpan = resolveAlarmSpan(alarmSpan);
 
   const splitModeRequested = Boolean(splitYAxisEnabled);
@@ -431,6 +458,10 @@ function renderLineChartWithD3(d3, config) {
     .attr("height", innerHeight);
 
   const gridLayer = root.append("g").attr("class", "grid-lines");
+  const thresholdLayer = root
+    .append("g")
+    .attr("class", "threshold-overlay-layer")
+    .attr("clip-path", `url(#${clipId})`);
   const alarmLayer = root.append("g").attr("class", "alarm-span-layer");
   const previewLayer = root.append("g").attr("class", "sync-preview-layer");
   const linesLayer = root.append("g").attr("clip-path", `url(#${clipId})`);
@@ -533,7 +564,7 @@ function renderLineChartWithD3(d3, config) {
     : [];
   let currentYDomain = hasSeries
     ? cloneNumericDomain(interactionState.currentYDomain) ||
-      computeSharedYDomain(renderLines, currentXDomain, normalizationEnabled)
+      computeSharedYDomain(renderLines, currentXDomain, normalizationEnabled, parsedThresholdLines)
     : [0, 1];
   currentYDomain = clampNumericDomain(currentYDomain, fullYBounds) || cloneNumericDomain(fullYBounds);
 
@@ -696,9 +727,39 @@ function renderLineChartWithD3(d3, config) {
     });
   }
 
+  function renderThresholdLayer() {
+    thresholdLayer.selectAll("*").remove();
+    if (parsedThresholdLines.length === 0) {
+      return;
+    }
+    const thresholdScale =
+      splitMode && renderLines.length > 0
+        ? splitYScales.get(renderLines[0].key) || sharedYScale
+        : sharedYScale;
+
+    parsedThresholdLines.forEach((thresholdLine) => {
+      const y = thresholdScale(thresholdLine.value);
+      if (!Number.isFinite(y) || y < 0 || y > innerHeight) {
+        return;
+      }
+      thresholdLayer
+        .append("line")
+        .attr("class", "threshold-overlay-line")
+        .attr("x1", 0)
+        .attr("x2", innerWidth)
+        .attr("y1", y)
+        .attr("y2", y)
+        .attr("stroke", thresholdLine.color)
+        .attr("stroke-width", 1.4)
+        .attr("stroke-dasharray", thresholdLine.dash)
+        .attr("opacity", 0.95);
+    });
+  }
+
   function renderAll() {
     applyDomainToScales();
     renderAxes();
+    renderThresholdLayer();
     renderLinesLayer();
     cursorLayer.raise();
     renderAlarmSpan();
@@ -1048,7 +1109,8 @@ function renderLineChartWithD3(d3, config) {
     if ((mode === "zoom-y" || mode === "zoom-xy") && hasSeries && !splitMode && !normalizationEnabled) {
       if (dy >= MIN_SELECTION_PIXELS) {
         currentYDomain =
-          clampNumericDomain(nextY, fullYBounds) || computeSharedYDomain(renderLines, currentXDomain, false);
+          clampNumericDomain(nextY, fullYBounds) ||
+          computeSharedYDomain(renderLines, currentXDomain, false, parsedThresholdLines);
       }
     }
   }
@@ -1278,7 +1340,7 @@ function renderLineChartWithD3(d3, config) {
       ? buildVisibleRenderLines(parsedLines, currentXDomain, normalizationEnabled)
       : [];
     currentYDomain = hasSeries
-      ? computeSharedYDomain(renderLines, currentXDomain, normalizationEnabled)
+      ? computeSharedYDomain(renderLines, currentXDomain, normalizationEnabled, parsedThresholdLines)
       : [0, 1];
     previewDomain = null;
     if (typeof onSyncPreviewChange === "function") {
@@ -1289,7 +1351,7 @@ function renderLineChartWithD3(d3, config) {
 
   function autoScaleY() {
     if (!hasSeries || splitMode || normalizationEnabled) return;
-    currentYDomain = computeSharedYDomain(renderLines, currentXDomain, normalizationEnabled);
+    currentYDomain = computeSharedYDomain(renderLines, currentXDomain, normalizationEnabled, parsedThresholdLines);
     renderAll();
   }
 

@@ -97,11 +97,46 @@ def test_sensor_context_batch_returns_enriched_rows(client) -> None:
     assert body["rows"][0]["last_value"] == 70.0
     assert body["rows"][0]["avg_1d"] == 68.0
     assert body["rows"][0]["thresholds"]["hi"]["value"] == 85.0
+    assert body["rows"][0]["thresholds"]["hi"]["converted_value"] == 85.0
+    assert body["rows"][0]["thresholds"]["hi"]["converted_unit"] == "degC"
     assert body["rows"][0]["thresholds"]["custom_hi"]["value"] == 91.0
     assert body["rows"][0]["thresholds"]["custom_lo"]["value"] == 13.0
+    assert body["rows"][0]["thresholds"]["custom_hi"]["is_configured"] is True
+    assert body["rows"][0]["thresholds"]["custom_lo"]["is_configured"] is True
     assert fake.calls[0]["start_date"] == "2026-01-01"
     assert fake.calls[0]["end_date"] == "2026-01-03"
     assert fake.calls[0]["window"] == "6h"
+    client.app.dependency_overrides.clear()
+
+
+def test_sensor_context_batch_custom_thresholds_start_unconfigured(client) -> None:
+    fake = _FakeAdapter()
+    fake_custom_store = _FakeCustomAlarmStore(None)
+    client.app.dependency_overrides[get_profiling_adapter] = lambda: fake
+    client.app.dependency_overrides[get_custom_alarms_store] = lambda: fake_custom_store
+    payload = {
+        "start_date": "2026-01-01",
+        "end_date": "2026-01-03",
+        "window": "6h",
+        "tags": [
+            {
+                "tag_key": "item-1::attr-1",
+                "asset_name": "MV30-HBG-1120B",
+                "item_id": "item-1",
+                "attribute_id": "attr-1",
+                "attribute_name": "Temperature",
+                "label": "Temperature [TAG]",
+            }
+        ],
+    }
+
+    response = client.post("/api/v1/charts/sensor-context-batch", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["rows"][0]["thresholds"]["custom_hi"]["value"] is None
+    assert body["rows"][0]["thresholds"]["custom_lo"]["value"] is None
+    assert body["rows"][0]["thresholds"]["custom_hi"]["is_configured"] is False
+    assert body["rows"][0]["thresholds"]["custom_lo"]["is_configured"] is False
     client.app.dependency_overrides.clear()
 
 

@@ -6,11 +6,14 @@ import {
   getIntelEvents,
   getItemAttributes,
   getPages,
+  getSensorContextBatch,
+  getTableColumnsManifest,
 } from "./services/api-client.js";
 import { renderTabNavigation } from "./components/tab-navigation.js";
 import { renderPageControls } from "./components/page-controls.js";
 import { renderChartGrid } from "./components/chart-grid.js";
 import { openChartSelectorModal } from "./components/chart-selector-modal.js";
+import { openCustomAlarmModal } from "./components/custom-alarm-modal.js?v=20260504-1";
 import { renderSafeMarkdown } from "./utils/safe-markdown.js";
 
 const ROOT_PARENT_KEY = "__root__";
@@ -369,6 +372,58 @@ function sensorToTag(sensor) {
     attributeId: sensor.attributeId,
     attributeName: sensor.attributeName,
     label: sensor.label,
+  });
+}
+
+function buildSensorContextBatchPayload(tag, page) {
+  const useCustomDateRange = String(page?.datePreset || "").toLowerCase() === "custom";
+  return {
+    start_date: useCustomDateRange ? page?.startDate || null : null,
+    end_date: useCustomDateRange ? page?.endDate || null : null,
+    window: String(page?.frequencyWindow || "6h").trim() || "6h",
+    tags: [
+      {
+        tag_key: toTagKey(tag),
+        asset_name: tag.assetName,
+        item_id: tag.itemId,
+        attribute_id: tag.attributeId || null,
+        attribute_name: tag.attributeName || null,
+        label: tag.label || null,
+      },
+    ],
+  };
+}
+
+async function loadSensorThresholdContext(sensor) {
+  const tag = sensorToTag(sensor);
+  if (!tag) return null;
+
+  try {
+    const snapshot = store.getState();
+    const activePage = getActivePage(snapshot);
+    const payload = await getSensorContextBatch(buildSensorContextBatchPayload(tag, activePage));
+    const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+    const attributeId = String(sensor?.attributeId || "").trim();
+    if (attributeId) {
+      const byAttributeId = rows.find((row) => String(row?.attribute_id || "").trim() === attributeId);
+      if (byAttributeId) return byAttributeId;
+    }
+
+    const tagKey = toTagKey(tag);
+    const byTagKey = rows.find((row) => String(row?.tag_key || "").trim() === tagKey);
+    return byTagKey || rows[0] || null;
+  } catch (error) {
+    console.warn("Unable to load sensor threshold context for custom alarm modal.", error);
+    return null;
+  }
+}
+
+async function openCustomAlarmAuthoring(sensor, { onSaved } = {}) {
+  const thresholdContext = await loadSensorThresholdContext(sensor);
+  await openCustomAlarmModal({
+    sensor,
+    thresholdContext,
+    onSaved,
   });
 }
 
@@ -1131,6 +1186,17 @@ function renderSensorSidebar(target, snapshot) {
                 plotSingleSensor(sensor);
               },
             },
+            {
+              label: "Create custom alarms",
+              onSelect: async () => {
+                await openCustomAlarmAuthoring(sensor, {
+                  onSaved: async () => {
+                    setSidebarNotice(`Custom alarms saved for ${sensor.label}.`);
+                    actions.refreshCharts?.();
+                  },
+                });
+              },
+            },
           ],
         });
       });
@@ -1761,6 +1827,10 @@ const actions = {
   setDatePreset: (pageId, preset) => store.setDatePreset(pageId, preset),
   setDateRange: (pageId, startDate, endDate) => store.setDateRange(pageId, startDate, endDate),
   setFrequency: (pageId, mode, window) => store.setFrequency(pageId, mode, window),
+  setGlobalTableColumns: (columnIds) => store.setGlobalTableColumns(columnIds),
+  setGlobalTableColumnWidth: (columnId, width) => store.setGlobalTableColumnWidth(columnId, width),
+  resetGlobalTableColumnWidths: () => store.resetGlobalTableColumnWidths(),
+  resetGlobalTableColumns: () => store.resetGlobalTableColumns(),
   refreshCharts: () => {
     const refreshButtons = Array.from(
       chartGridRoot.querySelectorAll('[data-role="chart-refresh"]'),
@@ -1830,16 +1900,34 @@ function buildNavigationSignature(snapshot) {
 function buildPageControlsSignature(snapshot) {
   const page = snapshot.pages.find((item) => item.id === snapshot.activePageId);
   if (!page) return "none";
+  const selectedColumnsSignature = Array.isArray(snapshot.tableColumns?.selectedIds)
+    ? snapshot.tableColumns.selectedIds.join(",")
+    : "";
+  const columnWidthsSignature = snapshot.tableColumns?.columnWidths
+    ? Object.entries(snapshot.tableColumns.columnWidths)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([id, value]) => `${id}:${value}`)
+        .join(",")
+    : "";
   return `${page.id}:${page.gridColumns}:${page.datePreset}:${page.startDate || ""}:${
     page.endDate || ""
   }:${page.frequencyMode || "auto"}:${page.frequencyWindow || "6h"}:${page.charts.length}:${
     page.dirty ? 1 : 0
-  }`;
+  }:${selectedColumnsSignature}:${columnWidthsSignature}`;
 }
 
 function buildChartGridSignature(snapshot) {
   const page = snapshot.pages.find((item) => item.id === snapshot.activePageId);
   if (!page) return "none";
+  const selectedColumnsSignature = Array.isArray(snapshot.tableColumns?.selectedIds)
+    ? snapshot.tableColumns.selectedIds.join(",")
+    : "";
+  const columnWidthsSignature = snapshot.tableColumns?.columnWidths
+    ? Object.entries(snapshot.tableColumns.columnWidths)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([id, value]) => `${id}:${value}`)
+        .join(",")
+    : "";
   const charts = page.charts
     .map((chart) => {
       const tagSignature = Array.isArray(chart.selectedTags)
@@ -1857,7 +1945,7 @@ function buildChartGridSignature(snapshot) {
     page.endDate || ""
   }:${page.frequencyMode || "auto"}:${page.frequencyWindow || "6h"}:${page.alarmMeta?.spanStart || ""}:${page.alarmMeta?.spanEnd || ""}:${
     page.pendingScrollChartId || ""
-  }:${charts}`;
+  }:${selectedColumnsSignature}:${columnWidthsSignature}:${charts}`;
 }
 
 function buildAlarmDetailsSignature(snapshot) {
@@ -1963,6 +2051,15 @@ async function bootstrap() {
   window.addEventListener("beforeunload", handleBeforeUnload);
   renderRefreshProgress();
 
+  const tableColumnsPromise = (async () => {
+    try {
+      const manifest = await getTableColumnsManifest();
+      store.setTableColumnsManifest(manifest);
+    } catch (error) {
+      console.warn("Failed to load table column defaults. Using local fallback.", error);
+    }
+  })();
+
   const pagesPromise = (async () => {
     try {
       const payload = await getPages();
@@ -1977,7 +2074,7 @@ async function bootstrap() {
 
   const equipmentPromise = loadEquipmentTree();
   const eventsPromise = preloadIntelEvents();
-  await Promise.allSettled([pagesPromise, equipmentPromise, eventsPromise]);
+  await Promise.allSettled([tableColumnsPromise, pagesPromise, equipmentPromise, eventsPromise]);
 }
 
 void bootstrap();

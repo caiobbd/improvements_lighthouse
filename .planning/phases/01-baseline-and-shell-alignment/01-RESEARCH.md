@@ -189,7 +189,7 @@ store.persist();
 | Old Approach | Current Approach | Impact |
 |--------------|------------------|--------|
 | Monolithic chart pages | Workspace-like composable chart pages | Better extensibility for presets/custom pages |
-| Backend-agnostic mock-only charts | API-backed charts with fallback mock mode | Faster transition to production data |
+| Backend-agnostic chart payloads | API-backed charts with explicit contracts | Faster integration and lower payload ambiguity risk |
 | Heavy styled dashboards | Minimalist operational design systems | Better readability and decision speed |
 
 **New patterns to apply:**
@@ -224,7 +224,7 @@ store.persist();
 - `C:\Users\CaioBorges\_pgms\shape-workspace-api\workspace_api\profiling2\core.py`
 
 ### Secondary (MEDIUM confidence)
-- Existing charts implementation files (`frontend/charts/index.html`, `frontend/charts/app.js`, `backend/app/api/charts.py`)
+- Existing project implementation files (`frontend/charts`, `backend/app`, `.planning` artifacts)
 
 ### Tertiary (LOW confidence - needs validation)
 - None

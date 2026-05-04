@@ -30,7 +30,7 @@ key-decisions:
 patterns-established:
   - "Render-by-snapshot UI updates through centralized store subscription"
   - "Per-page state carries date filter and grid density"
-requirements-completed: [OVW-01, UXQ-01, UXQ-05]
+requirements-completed: [CHT-14, CHT-15, CHT-18]
 duration: 55min
 completed: 2026-04-12
 ---

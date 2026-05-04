@@ -181,6 +181,11 @@ class SensorContextThreshold(BaseModel):
     source: str = "sub_attributes"
     is_external: bool | None = None
     updated_at: datetime | None = None
+    is_configured: bool | None = None
+    converted_value: float | None = None
+    converted_unit: str | None = None
+    conversion_applied: bool = False
+    conversion_error: str | None = None
 
 
 class SensorContextRow(BaseModel):

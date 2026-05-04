@@ -44,11 +44,11 @@ Progress: [#######...] 70%
 - Phase 1 now guarantees at least one pre-saved chart renders live API data.
 - Charts presets are backend-seeded and frontend-hydrated from `/api/v1/charts/pages`.
 - Attribute-targeted timeseries endpoint is the deterministic data path for preset charts.
-- Early baseline charts now use centralized metadata contracts for units/labels and rendering.
+- Phase 2 baseline chart contracts now use centralized metadata for units/labels and rendering.
 - Phase 2 alarm triage is deterministic via severity/occurrence/recency ordering and id-based modal routing.
 - Phase 2.1 scope is locked: case-insensitive substring asset search (cap 50), timeseries-only attribute selection, checkbox multi-select, multi-asset chart plotting, and per-chart attribute tag editing with red `x` removal control.
 - Phase 2.1 implementation now includes selector modal, backend asset search endpoint, selectedTags chart state, and per-tag red `x` removal.
-- Phase 2.2 is required to harden query ergonomics and chart-page performance from first-user testing.
+- Phase 2.2 was inserted to harden query ergonomics and chart-page performance from first-user testing before expanding alarm/event scope.
 - Phase 2.1 remains in verifying state until final human browser confirmation is logged.
 - Phase 2.2 implementation now enforces submit-only asset search, asset-first attribute queries, 6h default sampling, timeseries cache, and hover Actions -> Add new tags flow.
 

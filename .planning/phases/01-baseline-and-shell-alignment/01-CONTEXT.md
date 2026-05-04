@@ -71,9 +71,9 @@ Deliver a functional Lighthouse baseline focused on a single `Charts` tab, inclu
 - `.tmp/reference/tab-charts.css` - Tab charts structure and visual details
 
 ### Existing project docs
-- `.planning/PROJECT.md` - Active project scope and constraints
-- `.planning/REQUIREMENTS.md` - Active charts and alarm recognition requirements
-- `.planning/ROADMAP.md` - Active charts-only phase progression
+- `.planning/PROJECT.md` - Current charts-first scope, constraints, and decision log
+- `.planning/REQUIREMENTS.md` - Canonical requirement IDs and phase mapping
+- `.planning/ROADMAP.md` - Active phase sequencing and delivery status
 
 ### Design palette sources
 - `C:\Users\CaioBorges\OneDrive - Shape Digital\1. Pessoal\5. Estudo\design\our world in data - example 1.png`
@@ -92,18 +92,18 @@ Deliver a functional Lighthouse baseline focused on a single `Charts` tab, inclu
 ## Existing Code Insights
 
 ### Reusable Assets
-- `frontend/charts/index.html` contains the active Charts page shell.
-- `frontend/charts/styles/*.css` contains active theme tokens and component conventions.
-- `backend/app/api/charts.py` contains seeded chart payload patterns and API contract examples.
+- `frontend/charts/src/pages/ChartsPage.tsx` contains current charts workspace composition patterns.
+- `frontend/charts/src/features/charting/` contains chart card lifecycle and plotting interactions.
+- `backend/app/routes/charts.py` and related services provide API contracts used by the charts frontend.
 
 ### Established Patterns
-- Active app uses static HTML + JS modules + D3 for chart rendering.
-- Sidebar, tab, and modal interactions are implemented directly in the Charts workspace.
+- Frontend is organized around charts-first feature modules and reusable hooks/services.
+- Backend APIs expose chart-oriented contracts (assets, attributes, timeseries, events) for frontend workflows.
 
 ### Integration Points
-- New charts-focused frontend modules can be introduced while preserving current shell markup conventions.
-- FastAPI service can be introduced under a new backend folder and consumed by frontend through an API client module.
-- Existing mock-data pipeline can remain as fallback while backend endpoints are wired.
+- Charting modules should continue to integrate through existing frontend service/store boundaries.
+- FastAPI services should preserve stable response contracts consumed by charts selectors and plotting features.
+- Event/alarm enhancements should reuse existing charts page state and plotting primitives rather than creating parallel flows.
 
 </code_context>
 

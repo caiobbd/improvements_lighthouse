@@ -3,6 +3,7 @@ const API_BASE = config.apiBaseUrl || "http://127.0.0.1:8001/api/v1/charts";
 const TIMESERIES_CACHE_TTL_MS = 60 * 1000;
 const TIMESERIES_CACHE_MAX_ENTRIES = 100;
 const TAG_TIMESERIES_CACHE_MAX_ENTRIES = 500;
+const TABLE_COLUMNS_MANIFEST_URL = new URL("../config/default-table-columns.json", import.meta.url);
 const timeseriesCache = new Map();
 const tagTimeseriesCache = new Map();
 const inflightTimeseriesRequests = new Map();
@@ -409,6 +410,74 @@ export async function getTimeSeriesByTags(params) {
     tags: orderedTags,
     warnings: [],
   };
+}
+
+export async function getSensorContextBatch(params = {}) {
+  const safeTags = Array.isArray(params?.tags) ? params.tags.map((tag) => normalizeTagRequest(tag)) : [];
+  const payload = {
+    start_date: params?.start_date || null,
+    end_date: params?.end_date || null,
+    window: params?.window || "auto",
+    tags: safeTags.map((tag) => ({
+      tag_key: tag.tag_key,
+      asset_name: tag.asset_name,
+      item_id: tag.item_id,
+      attribute_id: tag.attribute_id || null,
+      attribute_name: tag.attribute_name || null,
+      label: tag.label || null,
+    })),
+  };
+  return request("/sensor-context-batch", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getCustomAlarm(attributeId) {
+  const safeAttributeId = String(attributeId || "").trim();
+  if (!safeAttributeId) {
+    throw new ApiClientError("Attribute id is required to load custom alarm values.", 422);
+  }
+  return request(`/custom-alarms/${encodeURIComponent(safeAttributeId)}`);
+}
+
+export async function putCustomAlarm(attributeId, payload = {}) {
+  const safeAttributeId = String(attributeId || "").trim();
+  if (!safeAttributeId) {
+    throw new ApiClientError("Attribute id is required to save custom alarm values.", 422);
+  }
+
+  const customHi = payload?.custom_hi;
+  const customLo = payload?.custom_lo;
+  const body = {
+    custom_hi: customHi === null || customHi === undefined ? null : Number(customHi),
+    custom_lo: customLo === null || customLo === undefined ? null : Number(customLo),
+  };
+  return request(`/custom-alarms/${encodeURIComponent(safeAttributeId)}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function getTableColumnsManifest() {
+  const response = await fetch(TABLE_COLUMNS_MANIFEST_URL, {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+  if (!response.ok) {
+    throw new ApiClientError(
+      `Unable to load table column defaults (status ${response.status}).`,
+      response.status,
+    );
+  }
+  const body = await response.json();
+  if (!body || typeof body !== "object" || !Array.isArray(body.columns)) {
+    throw new ApiClientError("Invalid table column defaults manifest.", 500);
+  }
+  return body;
 }
 
 export async function savePage(page) {

@@ -29,7 +29,7 @@ key-decisions:
 patterns-established:
   - "Expose read-only chart endpoints under /api/v1/charts"
   - "Convert dataframe output into plain JSON structures in service layer"
-requirements-completed: [OVW-01, UXQ-01, UXQ-05]
+requirements-completed: [CHT-35, CHT-37]
 duration: 45min
 completed: 2026-04-12
 ---

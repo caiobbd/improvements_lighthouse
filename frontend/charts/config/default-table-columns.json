@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "columns": [
+    { "id": "name", "label": "Name", "default": true, "required": true, "sticky": true },
+    { "id": "remove", "label": "X", "default": true, "required": true },
+    { "id": "color", "label": "Color", "default": true, "required": true },
+    { "id": "last_value", "label": "Last value", "default": true },
+    { "id": "unit_of_measurement", "label": "Unit", "default": true },
+    { "id": "hi", "label": "Hi", "default": true, "threshold": true },
+    { "id": "lo", "label": "Lo", "default": true, "threshold": true },
+    { "id": "hihi", "label": "HiHi", "default": true, "threshold": true },
+    { "id": "lolo", "label": "LoLo", "default": true, "threshold": true },
+    { "id": "avg_1d", "label": "-1d AVG", "default": true },
+    { "id": "min", "label": "Minimum", "default": false },
+    { "id": "max", "label": "Maximum", "default": false },
+    { "id": "tag", "label": "Tag", "default": false },
+    { "id": "reference", "label": "Reference", "default": false },
+    { "id": "categories", "label": "Categories", "default": false },
+    { "id": "custom_hi", "label": "Custom-Hi", "default": false, "threshold": true },
+    { "id": "custom_lo", "label": "Custom-Lo", "default": false, "threshold": true }
+  ]
+}

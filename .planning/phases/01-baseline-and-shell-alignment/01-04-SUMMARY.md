@@ -27,7 +27,7 @@ key-decisions:
   - "Preset charts are generated from real asset/attribute discovery on backend pages endpoint."
   - "Frontend boot flow syncs backend preset pages before regular rendering."
   - "Chart-card uses timeseries-from-attribute when item/attribute metadata exists."
-requirements-completed: [UXQ-06]
+requirements-completed: [CHT-30, CHT-33]
 duration: 45min
 completed: 2026-04-12
 ---

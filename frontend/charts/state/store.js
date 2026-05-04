@@ -7,6 +7,32 @@ const DEFAULT_FREQUENCY_WINDOW = "6h";
 const DEFAULT_PAGE_TYPE = "standard";
 const MIN_GRID_COLUMNS = 1;
 const MAX_GRID_COLUMNS = 2;
+const ALWAYS_INCLUDED_TABLE_COLUMN_IDS = Object.freeze(["name", "color", "remove"]);
+const MIN_LABEL_COLUMN_WIDTH = 32;
+const ACTION_COLUMN_MIN_WIDTH = 56;
+const MAX_TABLE_COLUMN_WIDTH = 640;
+const DEFAULT_TABLE_COLUMN_MANIFEST = Object.freeze({
+  version: 1,
+  columns: Object.freeze([
+    Object.freeze({ id: "name", label: "Name", default: true, required: true, sticky: true }),
+    Object.freeze({ id: "remove", label: "X", default: true, required: true }),
+    Object.freeze({ id: "color", label: "Color", default: true, required: true }),
+    Object.freeze({ id: "last_value", label: "Last value", default: true }),
+    Object.freeze({ id: "unit_of_measurement", label: "Unit", default: true }),
+    Object.freeze({ id: "hi", label: "Hi", default: true, threshold: true }),
+    Object.freeze({ id: "lo", label: "Lo", default: true, threshold: true }),
+    Object.freeze({ id: "hihi", label: "HiHi", default: true, threshold: true }),
+    Object.freeze({ id: "lolo", label: "LoLo", default: true, threshold: true }),
+    Object.freeze({ id: "avg_1d", label: "-1d AVG", default: true }),
+    Object.freeze({ id: "min", label: "Minimum", default: false }),
+    Object.freeze({ id: "max", label: "Maximum", default: false }),
+    Object.freeze({ id: "tag", label: "Tag", default: false }),
+    Object.freeze({ id: "reference", label: "Reference", default: false }),
+    Object.freeze({ id: "categories", label: "Categories", default: false }),
+    Object.freeze({ id: "custom_hi", label: "Custom-Hi", default: false, threshold: true }),
+    Object.freeze({ id: "custom_lo", label: "Custom-Lo", default: false, threshold: true }),
+  ]),
+});
 
 function createId(prefix) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -41,6 +67,187 @@ function normalizeFrequencyWindow(value) {
 
 function normalizePageType(value) {
   return String(value || "").toLowerCase() === "alarm" ? "alarm" : DEFAULT_PAGE_TYPE;
+}
+
+function normalizeTableColumnDefinition(column, index) {
+  const id = String(column?.id || "").trim();
+  if (!id) return null;
+  const label = String(column?.label || id).trim() || id;
+  return {
+    id,
+    label,
+    default: Boolean(column?.default),
+    required: ALWAYS_INCLUDED_TABLE_COLUMN_IDS.includes(id) || Boolean(column?.required),
+    sticky: id === "name" || Boolean(column?.sticky),
+    threshold: Boolean(column?.threshold),
+    order: Number.isFinite(Number(column?.order)) ? Number(column.order) : index,
+  };
+}
+
+function normalizeTableColumnsManifest(value) {
+  const parsedColumns = Array.isArray(value?.columns) ? value.columns : [];
+  const normalizedColumns = parsedColumns
+    .map((column, index) => normalizeTableColumnDefinition(column, index))
+    .filter(Boolean);
+
+  if (normalizedColumns.length === 0) {
+    return {
+      version: Number(DEFAULT_TABLE_COLUMN_MANIFEST.version) || 1,
+      columns: DEFAULT_TABLE_COLUMN_MANIFEST.columns.map((column, index) => ({
+        ...column,
+        order: index,
+      })),
+    };
+  }
+
+  const byId = new Map();
+  normalizedColumns.forEach((column, index) => {
+    byId.set(column.id, { ...column, order: index });
+  });
+
+  const requiredDefaults = [
+    { id: "name", label: "Name", sticky: true, default: true, threshold: false, order: -3 },
+    { id: "remove", label: "X", sticky: false, default: true, threshold: false, order: -2 },
+    { id: "color", label: "Color", sticky: false, default: true, threshold: false, order: -1 },
+  ];
+  requiredDefaults.forEach((entry) => {
+    if (!byId.has(entry.id)) {
+      byId.set(entry.id, {
+        ...entry,
+        required: true,
+      });
+    }
+  });
+
+  const columns = Array.from(byId.values())
+    .sort((left, right) => left.order - right.order)
+    .map((column, index) => ({
+      ...column,
+      order: index,
+      required: ALWAYS_INCLUDED_TABLE_COLUMN_IDS.includes(column.id) || Boolean(column.required),
+      sticky: column.id === "name" || Boolean(column.sticky),
+    }));
+
+  return {
+    version: Number(value?.version) || 1,
+    columns,
+  };
+}
+
+function buildDefaultSelectedTableColumnIds(columns) {
+  const source = Array.isArray(columns) ? columns : [];
+  const defaults = source.filter((column) => column.default || column.required).map((column) => column.id);
+  if (!defaults.includes("name")) {
+    defaults.unshift("name");
+  }
+  return Array.from(new Set(defaults));
+}
+
+function normalizeSelectedTableColumnIds(selectedIds, availableColumns, fallbackIds) {
+  const availableSet = new Set(
+    (Array.isArray(availableColumns) ? availableColumns : []).map((column) => column.id),
+  );
+  const requiredIds = (Array.isArray(availableColumns) ? availableColumns : [])
+    .filter((column) => column.required)
+    .map((column) => column.id);
+  ALWAYS_INCLUDED_TABLE_COLUMN_IDS.forEach((id) => {
+    if (!requiredIds.includes(id)) {
+      requiredIds.push(id);
+    }
+  });
+
+  const source = Array.isArray(selectedIds) ? selectedIds : fallbackIds;
+  const normalized = source
+    .map((id) => String(id || "").trim())
+    .filter((id) => availableSet.has(id));
+
+  const unique = Array.from(new Set(normalized));
+  const normalizedOrdered = unique.slice();
+  requiredIds.forEach((id) => {
+    if (availableSet.has(id) && !normalizedOrdered.includes(id)) {
+      normalizedOrdered.push(id);
+    }
+  });
+
+  if (normalizedOrdered.length === 0) {
+    const fallback = Array.isArray(fallbackIds) ? fallbackIds : buildDefaultSelectedTableColumnIds(availableColumns);
+    return normalizeSelectedTableColumnIds(fallback, availableColumns, fallback);
+  }
+
+  if (normalizedOrdered.includes("name")) {
+    return ["name", ...normalizedOrdered.filter((id) => id !== "name")];
+  }
+  return normalizedOrdered;
+}
+
+function resolveTableColumnLabel(columnId, availableColumns) {
+  const id = String(columnId || "").trim();
+  const column = Array.isArray(availableColumns)
+    ? availableColumns.find((entry) => String(entry?.id || "").trim() === id)
+    : null;
+  if (column?.label) {
+    return String(column.label);
+  }
+  return id.replace(/[_-]+/g, " ").trim() || id;
+}
+
+function estimateLabelMinWidth(label) {
+  const text = String(label || "").trim();
+  if (!text) return MIN_LABEL_COLUMN_WIDTH;
+  return Math.max(MIN_LABEL_COLUMN_WIDTH, Math.round(text.length * 7 + 16));
+}
+
+function getMinTableColumnWidth(columnId, availableColumns = null) {
+  const id = String(columnId || "").trim();
+  if (id === "color" || id === "remove") return ACTION_COLUMN_MIN_WIDTH;
+  const label = resolveTableColumnLabel(id, availableColumns);
+  return estimateLabelMinWidth(label);
+}
+
+function clampTableColumnWidth(columnId, width, availableColumns = null) {
+  const parsed = Number(width);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(
+    getMinTableColumnWidth(columnId, availableColumns),
+    Math.min(MAX_TABLE_COLUMN_WIDTH, Math.round(parsed)),
+  );
+}
+
+function normalizeTableColumnWidths(value, availableColumns) {
+  const availableSet = new Set(
+    (Array.isArray(availableColumns) ? availableColumns : []).map((column) => String(column.id || "").trim()),
+  );
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+  const normalized = {};
+  Object.entries(value).forEach(([columnId, width]) => {
+    const id = String(columnId || "").trim();
+    if (!id || !availableSet.has(id)) return;
+    const clamped = clampTableColumnWidth(id, width, availableColumns);
+    if (!Number.isFinite(clamped)) return;
+    normalized[id] = clamped;
+  });
+  return normalized;
+}
+
+function normalizeTableColumnsState(value, manifest = DEFAULT_TABLE_COLUMN_MANIFEST) {
+  const normalizedManifest = normalizeTableColumnsManifest(manifest);
+  const availableColumns = normalizedManifest.columns;
+  const defaultIds = buildDefaultSelectedTableColumnIds(availableColumns);
+  const selectedIds = normalizeSelectedTableColumnIds(value?.selectedIds, availableColumns, defaultIds);
+  const columnWidths = normalizeTableColumnWidths(
+    value?.columnWidths || value?.column_widths,
+    availableColumns,
+  );
+  return {
+    version: normalizedManifest.version,
+    availableColumns,
+    defaultSelectedIds: defaultIds,
+    selectedIds,
+    columnWidths,
+    source: value?.source === "custom" ? "custom" : "default",
+  };
 }
 
 function normalizeAlarmMeta(value) {
@@ -223,6 +430,7 @@ function normalizePage(page, index = 0, forcePreset = false) {
 }
 
 function createDefaultState() {
+  const tableColumns = normalizeTableColumnsState(null, DEFAULT_TABLE_COLUMN_MANIFEST);
   const preset = createPage("Production Overview", {
     isPreset: true,
     gridColumns: 2,
@@ -257,6 +465,7 @@ function createDefaultState() {
   return {
     pages: [preset, custom],
     activePageId: preset.id,
+    tableColumns,
     version: 1,
   };
 }
@@ -281,6 +490,10 @@ function loadState() {
     return {
       pages: parsed.pages.map((page, index) => normalizePage(page, index)),
       activePageId: parsed.activePageId,
+      tableColumns: normalizeTableColumnsState(
+        parsed.tableColumns || parsed.table_columns,
+        parsed.tableColumnsManifest || parsed.table_columns_manifest || DEFAULT_TABLE_COLUMN_MANIFEST,
+      ),
       version: 1,
     };
   } catch {
@@ -345,6 +558,92 @@ export const store = {
 
   hasDirtyPages(snapshot = state) {
     return snapshot.pages.some((page) => page.dirty);
+  },
+
+  getTableColumns(snapshot = state) {
+    return clone(snapshot.tableColumns || normalizeTableColumnsState(null));
+  },
+
+  setTableColumnsManifest(manifest) {
+    mutate((draft) => {
+      const current = draft.tableColumns || normalizeTableColumnsState(null);
+      const next = normalizeTableColumnsState(
+        {
+          selectedIds: current.selectedIds,
+          columnWidths: current.columnWidths,
+          source: current.source,
+        },
+        manifest,
+      );
+      if (current.source === "default") {
+        next.selectedIds = normalizeSelectedTableColumnIds(
+          next.defaultSelectedIds,
+          next.availableColumns,
+          next.defaultSelectedIds,
+        );
+      }
+      draft.tableColumns = next;
+    });
+  },
+
+  setGlobalTableColumns(columnIds) {
+    mutate((draft) => {
+      const current = draft.tableColumns || normalizeTableColumnsState(null);
+      draft.tableColumns = {
+        ...current,
+        selectedIds: normalizeSelectedTableColumnIds(
+          columnIds,
+          current.availableColumns,
+          current.defaultSelectedIds,
+        ),
+        source: "custom",
+      };
+    });
+  },
+
+  resetGlobalTableColumns() {
+    mutate((draft) => {
+      const current = draft.tableColumns || normalizeTableColumnsState(null);
+      draft.tableColumns = {
+        ...current,
+        selectedIds: normalizeSelectedTableColumnIds(
+          current.defaultSelectedIds,
+          current.availableColumns,
+          current.defaultSelectedIds,
+        ),
+        source: "default",
+      };
+    });
+  },
+
+  setGlobalTableColumnWidth(columnId, width) {
+    mutate((draft) => {
+      const current = draft.tableColumns || normalizeTableColumnsState(null);
+      const id = String(columnId || "").trim();
+      if (!id) return;
+      const availableColumns = Array.isArray(current.availableColumns) ? current.availableColumns : [];
+      const available = new Set(availableColumns.map((column) => column.id));
+      if (!available.has(id)) return;
+      const clampedWidth = clampTableColumnWidth(id, width, availableColumns);
+      if (!Number.isFinite(clampedWidth)) return;
+      draft.tableColumns = {
+        ...current,
+        columnWidths: {
+          ...(current.columnWidths || {}),
+          [id]: clampedWidth,
+        },
+      };
+    });
+  },
+
+  resetGlobalTableColumnWidths() {
+    mutate((draft) => {
+      const current = draft.tableColumns || normalizeTableColumnsState(null);
+      draft.tableColumns = {
+        ...current,
+        columnWidths: {},
+      };
+    });
   },
 
   addPage(name) {
@@ -629,4 +928,5 @@ export const storeConstants = {
   NEW_PAGE_PREFIX,
   DEFAULT_FREQUENCY_MODE,
   DEFAULT_FREQUENCY_WINDOW,
+  DEFAULT_TABLE_COLUMN_MANIFEST,
 };

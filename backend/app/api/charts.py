@@ -38,6 +38,7 @@ from backend.app.services.profiling_adapter import (
     WorkspaceUnavailableError,
 )
 from backend.app.services.custom_alarms_store import CustomAlarmsStore, CustomAlarmsStoreError
+from backend.app.services.unit_conversion import convert_thresholds_to_target_unit
 
 router = APIRouter()
 SUPPORTED_WINDOWS = {"15m", "1h", "6h", "1d"}
@@ -793,20 +794,23 @@ def get_sensor_context_batch(
                     ).replace(tzinfo=None)
                 except ValueError:
                     custom_updated_at = None
-            row.thresholds["custom_hi"] = row.thresholds.get("custom_hi") or SensorContextThreshold(
+            row.thresholds["custom_hi"] = SensorContextThreshold(
                 key="custom_hi",
                 value=float(custom_alarm["custom_hi"]) if custom_alarm and custom_alarm.get("custom_hi") is not None else None,
                 unit=row.unit_of_measurement,
                 source="custom",
                 updated_at=custom_updated_at,
+                is_configured=bool(custom_alarm and custom_alarm.get("custom_hi") is not None),
             )
-            row.thresholds["custom_lo"] = row.thresholds.get("custom_lo") or SensorContextThreshold(
+            row.thresholds["custom_lo"] = SensorContextThreshold(
                 key="custom_lo",
                 value=float(custom_alarm["custom_lo"]) if custom_alarm and custom_alarm.get("custom_lo") is not None else None,
                 unit=row.unit_of_measurement,
                 source="custom",
                 updated_at=custom_updated_at,
+                is_configured=bool(custom_alarm and custom_alarm.get("custom_lo") is not None),
             )
+            row.thresholds = convert_thresholds_to_target_unit(row.thresholds, row.unit_of_measurement)
             rows.append(row)
         except (UnknownAssetError, WorkspaceUnavailableError, ProfilingAdapterError) as exc:
             message = str(exc)

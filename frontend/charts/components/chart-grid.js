@@ -185,6 +185,7 @@ function destroyEntry(entry) {
 export async function renderChartGrid(container, snapshot, actions) {
   const page = snapshot.pages.find((item) => item.id === snapshot.activePageId);
   if (!page) return;
+  const tableColumns = snapshot.tableColumns || null;
   const runtime = getRuntime(container);
 
   if (runtime.activePageId !== page.id) {
@@ -228,6 +229,7 @@ export async function renderChartGrid(container, snapshot, actions) {
       const node = createChartCard({
         chart,
         page,
+        tableColumns,
         actions,
         syncBus: runtime.syncBus,
       });
@@ -237,7 +239,7 @@ export async function renderChartGrid(container, snapshot, actions) {
       };
       runtime.chartEntries.set(chart.id, entry);
     } else {
-      entry.api?.update?.(chart, page);
+      entry.api?.update?.(chart, page, tableColumns);
     }
 
     const node = entry.node;

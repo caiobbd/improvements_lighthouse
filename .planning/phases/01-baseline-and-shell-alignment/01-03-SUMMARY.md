@@ -33,7 +33,7 @@ key-decisions:
 patterns-established:
   - "API client returns normalized series for renderer consumption"
   - "Chart cards own loading/error/empty states without crashing page"
-requirements-completed: [OVW-01, UXQ-01, UXQ-05]
+requirements-completed: [CHT-17, CHT-18, CHT-57]
 duration: 70min
 completed: 2026-04-12
 ---
