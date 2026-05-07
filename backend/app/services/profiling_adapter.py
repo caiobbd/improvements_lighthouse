@@ -64,11 +64,14 @@ class ProfilingAdapter:
     _timeseries_cache_lock: Lock = Lock()
     _timeseries_cache: dict[str, tuple[float, list[Series]]] = {}
     _intel_events_cache_lock: Lock = Lock()
-    _intel_events_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+    _intel_events_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+    _descendant_item_ids_cache_lock: Lock = Lock()
+    _descendant_item_ids_cache: dict[str, frozenset[str]] = {}
     _attribute_cache_ttl_seconds: int = 300
     _equipment_sensor_cache_ttl_seconds: int = 300
     _timeseries_cache_ttl_seconds: int = 120
     _intel_events_cache_ttl_seconds: int = 300
+    _intel_event_types: tuple[str, ...] = ("Shape Intel", "ShapeIntel - Heat Exchanger")
 
     def __init__(self, workspace: Any | None = None) -> None:
         self._workspace = workspace
@@ -1083,19 +1086,33 @@ class ProfilingAdapter:
                 "Workspace client does not support get_all_events(type='Shape Intel')."
             )
 
-        try:
-            raw_events = self.workspace.get_all_events(type="Shape Intel")
-        except Exception as exc:
-            raise ProfilingAdapterError(f"Failed to fetch Shape Intel events: {exc}") from exc
+        frames: list[pd.DataFrame] = []
+        for event_type in self._intel_event_types:
+            try:
+                raw_events = self.workspace.get_all_events(type=event_type)
+            except Exception as exc:
+                raise ProfilingAdapterError(
+                    f"Failed to fetch '{event_type}' events: {exc}"
+                ) from exc
 
-        if isinstance(raw_events, pd.DataFrame):
-            frame = raw_events.copy()
-        elif isinstance(raw_events, list):
-            frame = pd.DataFrame(raw_events)
-        elif isinstance(raw_events, dict):
-            frame = pd.DataFrame(raw_events.get("events") or raw_events.get("data") or [])
+            if isinstance(raw_events, pd.DataFrame):
+                frame = raw_events.copy()
+            elif isinstance(raw_events, list):
+                frame = pd.DataFrame(raw_events)
+            elif isinstance(raw_events, dict):
+                frame = pd.DataFrame(raw_events.get("events") or raw_events.get("data") or [])
+            else:
+                frame = pd.DataFrame()
+            if not frame.empty:
+                frames.append(frame)
+
+        if not frames:
+            return []
+
+        if len(frames) == 1:
+            frame = frames[0]
         else:
-            frame = pd.DataFrame()
+            frame = pd.concat(frames, ignore_index=True)
 
         if frame.empty:
             return []
@@ -1103,35 +1120,84 @@ class ProfilingAdapter:
         _, nodes = self.get_equipment_tree()
         node_name_by_id = {node.id: node.name for node in nodes}
 
-        normalized: list[dict[str, Any]] = []
+        normalized_by_id: dict[str, dict[str, Any]] = {}
+        normalized_without_id: list[dict[str, Any]] = []
         for _, series in frame.iterrows():
             row = series.to_dict()
             entry = self._normalize_intel_event_row(row, node_name_by_id=node_name_by_id)
             if entry is not None:
-                normalized.append(entry)
-        return normalized
+                raw_event_id = self._string_or_none(row.get("id"))
+                event_id = raw_event_id or self._string_or_none(entry.get("event_id"))
+                if event_id:
+                    if event_id not in normalized_by_id:
+                        normalized_by_id[event_id] = entry
+                else:
+                    normalized_without_id.append(entry)
+        return list(normalized_by_id.values()) + normalized_without_id
 
-    def _get_cached_intel_events(self) -> list[dict[str, Any]]:
+    @staticmethod
+    def _build_item_events_index(events: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+        index: dict[str, list[dict[str, Any]]] = {}
+        for entry in events:
+            item_id = str(entry.get("item_id") or "").strip()
+            if not item_id:
+                continue
+            bucket = index.setdefault(item_id, [])
+            bucket.append(entry)
+        return index
+
+    def _get_cached_intel_events(self) -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]]]:
         cache_key = self._workspace_scoped_cache_key("intel-events")
         with self._intel_events_cache_lock:
             cached = self._intel_events_cache.get(cache_key)
             if cached and self._is_cache_entry_fresh(
                 cached_at=cached[0], ttl_seconds=self._intel_events_cache_ttl_seconds
             ):
-                return [dict(entry) for entry in cached[1]]
+                bundle = cached[1]
+                return bundle["events"], bundle["events_by_item_id"]
 
         events = self._fetch_all_intel_events()
+        events_by_item_id = self._build_item_events_index(events)
+        bundle = {
+            "events": events,
+            "events_by_item_id": events_by_item_id,
+        }
         with self._intel_events_cache_lock:
-            self._intel_events_cache[cache_key] = (time.monotonic(), [dict(entry) for entry in events])
-        return events
+            self._intel_events_cache[cache_key] = (time.monotonic(), bundle)
+        return events, events_by_item_id
 
     def _collect_descendant_item_ids(self, item_id: str) -> set[str]:
         target = str(item_id or "").strip()
         if not target:
             return set()
-        _, nodes = self.get_equipment_tree()
-        descendants = {node.id for node in nodes if target in node.path_ids}
+
+        cache_key = self._workspace_scoped_cache_key(f"descendants:{target}")
+        with self._descendant_item_ids_cache_lock:
+            cached = self._descendant_item_ids_cache.get(cache_key)
+            if cached is not None:
+                return set(cached)
+
+        tree_cache_key = self._workspace_tree_cache_key()
+        with self._equipment_tree_cache_lock:
+            tree_cached = self._equipment_tree_cache.get(tree_cache_key)
+
+        if tree_cached is None:
+            # Populate cache through the standard loading path once.
+            self.get_equipment_tree()
+            with self._equipment_tree_cache_lock:
+                tree_cached = self._equipment_tree_cache.get(tree_cache_key)
+
+        if tree_cached is not None:
+            source_nodes = tree_cached[1]
+        else:
+            # Last-resort fallback if cache population failed above.
+            _, source_nodes = self.get_equipment_tree()
+
+        descendants = {node.id for node in source_nodes if target in node.path_ids}
         descendants.add(target)
+
+        with self._descendant_item_ids_cache_lock:
+            self._descendant_item_ids_cache[cache_key] = frozenset(descendants)
         return descendants
 
     def get_intel_events(
@@ -1141,16 +1207,18 @@ class ProfilingAdapter:
         include_descendants: bool = True,
         status: str | None = None,
     ) -> tuple[list[dict[str, Any]], list[str]]:
-        events = self._get_cached_intel_events()
-        scoped = list(events)
+        events, events_by_item_id = self._get_cached_intel_events()
 
         normalized_item_id = str(item_id or "").strip()
-        if normalized_item_id:
-            if include_descendants:
-                allowed_ids = self._collect_descendant_item_ids(normalized_item_id)
-            else:
-                allowed_ids = {normalized_item_id}
-            scoped = [entry for entry in scoped if str(entry.get("item_id") or "") in allowed_ids]
+        if not normalized_item_id:
+            scoped = list(events)
+        elif include_descendants:
+            scoped = []
+            allowed_ids = self._collect_descendant_item_ids(normalized_item_id)
+            for descendant_item_id in allowed_ids:
+                scoped.extend(events_by_item_id.get(descendant_item_id, []))
+        else:
+            scoped = list(events_by_item_id.get(normalized_item_id, []))
 
         status_options = sorted(
             {

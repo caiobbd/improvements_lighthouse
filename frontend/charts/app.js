@@ -599,6 +599,24 @@ function buildVisibleEquipmentIds() {
   return visible;
 }
 
+function expandEquipmentTreeForFilter(filterText) {
+  const filter = String(filterText || "").trim().toLowerCase();
+  if (!filter) return;
+
+  const expanded = new Set(sidebarState.expandedEquipmentIds);
+  sidebarState.equipmentNodes.forEach((node) => {
+    if (!node.name.toLowerCase().includes(filter)) return;
+
+    let parentId = node.parentId;
+    while (parentId) {
+      expanded.add(parentId);
+      parentId = sidebarState.nodeById.get(parentId)?.parentId || null;
+    }
+  });
+
+  sidebarState.expandedEquipmentIds = expanded;
+}
+
 function normalizeEquipmentNode(rawNode) {
   return {
     id: String(rawNode.id || "").trim(),
@@ -985,10 +1003,41 @@ function renderEquipmentTreeList(target, snapshot) {
       row.style.setProperty("--tree-depth", String(depth));
 
       const hasChildren = childrenFor(node.id).length > 0;
-      const isExpanded =
-        hasFilter ||
-        sidebarState.expandedEquipmentIds.has(node.id) ||
-        node.id === sidebarState.selectedEquipmentId;
+      const isExpanded = sidebarState.expandedEquipmentIds.has(node.id);
+
+      const openNodeContextMenu = (event) => {
+        event.preventDefault();
+        showContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          items: [
+            {
+              label: "Plot by category",
+              onSelect: async () => {
+                await plotByCategoryForEquipment(node);
+              },
+            },
+            {
+              label: "Plot all sensors",
+              onSelect: async () => {
+                await plotAllSensorsForEquipment(node);
+              },
+            },
+          ],
+        });
+      };
+
+      const handleRowActivate = () => {
+        let shouldRender = false;
+        if (hasChildren && !sidebarState.expandedEquipmentIds.has(node.id)) {
+          sidebarState.expandedEquipmentIds.add(node.id);
+          shouldRender = true;
+        }
+        void selectEquipmentNode(node);
+        if (shouldRender) {
+          invalidateSidebarRender();
+        }
+      };
 
       let expander = null;
       if (hasChildren) {
@@ -1016,30 +1065,20 @@ function renderEquipmentTreeList(target, snapshot) {
       button.className = `equipment-node-button${sidebarState.selectedEquipmentId === node.id ? " active" : ""}`;
       button.textContent = node.name;
       button.title = node.pathNames.join(" / ");
-      button.addEventListener("click", () => {
-        void selectEquipmentNode(node);
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        handleRowActivate();
       });
       button.addEventListener("contextmenu", (event) => {
-        event.preventDefault();
-        showContextMenu({
-          x: event.clientX,
-          y: event.clientY,
-          items: [
-            {
-              label: "Plot by category",
-              onSelect: async () => {
-                await plotByCategoryForEquipment(node);
-              },
-            },
-            {
-              label: "Plot all sensors",
-              onSelect: async () => {
-                await plotAllSensorsForEquipment(node);
-              },
-            },
-          ],
-        });
+        event.stopPropagation();
+        openNodeContextMenu(event);
       });
+      row.addEventListener("click", (event) => {
+        if (event.button !== 0) return;
+        if (event.target instanceof Element && event.target.closest(".tree-expander")) return;
+        handleRowActivate();
+      });
+      row.addEventListener("contextmenu", openNodeContextMenu);
 
       row.append(expander, button);
       target.append(row);
@@ -1704,7 +1743,9 @@ function renderSidebars(snapshot) {
     });
     equipmentFilterForm.addEventListener("submit", (event) => {
       event.preventDefault();
-      sidebarState.equipmentFilter = sidebarState.equipmentFilterDraft.trim();
+      const nextFilter = sidebarState.equipmentFilterDraft.trim();
+      sidebarState.equipmentFilter = nextFilter;
+      expandEquipmentTreeForFilter(nextFilter);
       invalidateSidebarRender();
     });
     const equipmentTreeHost = equipmentPane.querySelector(".equipment-tree");

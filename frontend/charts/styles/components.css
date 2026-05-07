@@ -1562,34 +1562,36 @@
 
 .equipment-tree-row {
   display: grid;
-  grid-template-columns: 12px minmax(0, 1fr);
+  grid-template-columns: 20px minmax(0, 1fr);
   align-items: center;
   padding-left: calc(var(--tree-depth, 0) * 10px);
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
 .tree-expander {
-  width: 10px;
-  height: 10px;
-  border: 0;
-  background: transparent;
+  width: 18px;
+  height: 18px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: rgba(42, 111, 151, 0.08);
   cursor: pointer;
   position: relative;
   padding: 0;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .tree-expander::before {
   content: "";
   position: absolute;
-  top: 2px;
-  left: 2px;
+  top: 5px;
+  left: 6px;
   width: 0;
   height: 0;
-  border-top: 3px solid transparent;
-  border-bottom: 3px solid transparent;
-  border-left: 4px solid var(--ink-2);
-  transform-origin: 1px 3px;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid var(--ink-2);
+  transform-origin: 2px 4px;
   transition: transform 120ms ease;
 }
 
@@ -1597,9 +1599,19 @@
   transform: rotate(90deg);
 }
 
+.tree-expander:hover {
+  background: rgba(42, 111, 151, 0.2);
+  border-color: rgba(42, 111, 151, 0.4);
+}
+
+.tree-expander:focus-visible {
+  outline: 1px solid rgba(42, 111, 151, 0.5);
+  outline-offset: 1px;
+}
+
 .tree-expander-placeholder {
-  width: 10px;
-  height: 10px;
+  width: 18px;
+  height: 18px;
   display: inline-block;
 }
 
