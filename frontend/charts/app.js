@@ -89,7 +89,9 @@ function bindSidebarScrollPersistence(host, key) {
 function restoreSidebarScroll(host, key) {
   if (!host) return;
   const target = Math.max(0, Number(sidebarState[key] || 0));
+  host.scrollTop = target;
   requestAnimationFrame(() => {
+    if (!host.isConnected) return;
     host.scrollTop = target;
   });
 }
@@ -1028,15 +1030,21 @@ function renderEquipmentTreeList(target, snapshot) {
       };
 
       const handleRowActivate = () => {
-        let shouldRender = false;
-        if (hasChildren && !sidebarState.expandedEquipmentIds.has(node.id)) {
+        const didExpand = hasChildren && !sidebarState.expandedEquipmentIds.has(node.id);
+        if (didExpand) {
           sidebarState.expandedEquipmentIds.add(node.id);
-          shouldRender = true;
         }
+
+        const selectionIsNoOp =
+          sidebarState.selectedEquipmentId === node.id && sidebarState.sensorList.length > 0;
+        if (selectionIsNoOp) {
+          if (didExpand) {
+            invalidateSidebarRender();
+          }
+          return;
+        }
+
         void selectEquipmentNode(node);
-        if (shouldRender) {
-          invalidateSidebarRender();
-        }
       };
 
       let expander = null;

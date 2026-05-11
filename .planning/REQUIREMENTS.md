@@ -85,8 +85,8 @@
 
 ### Continuity and Incremental Loading
 
-- [ ] **CHT-64**: User can interact with the equipment tree (expand/select/filter/plot/drag) without losing current equipment-sidebar scroll position.
-- [ ] **CHT-65**: User can interact with the sensor/event sidebar (select/plot/drag/tab switch) without sidebar scroll resetting to top.
+- [ ] **CHT-64**: User can interact with the equipment tree (including row click on expandable items, expander toggle, filter apply, context-menu plot actions, and selection changes) without losing current equipment-sidebar scroll position.
+- [ ] **CHT-65**: User can interact with the sensor/event sidebar (including right-click plot actions, drag-and-drop plotting to charts, select/plot/drag/tab switch) without sidebar scroll resetting to top.
 - [ ] **CHT-66**: User always sees chart canvas and X-axis context (page range or current zoom range) even when chart has no loaded timeseries yet.
 - [ ] **CHT-67**: User sees a non-destructive loading state where existing plotted data remains visible while fetching additional tags/refreshes, with loading indicator shown above the chart.
 - [ ] **CHT-68**: User can add a new sensor to a populated chart without existing traces being cleared before new tag data arrives.
@@ -257,4 +257,4 @@
 
 ---
 *Requirements defined: 2026-04-11*  
-*Last updated: 2026-04-29 after Phase 8.1 requirements alignment*
+*Last updated: 2026-05-07 after scroll-continuity clarification*

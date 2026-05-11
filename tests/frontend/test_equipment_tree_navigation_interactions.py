@@ -15,7 +15,9 @@ def _read(path: Path) -> str:
 def test_equipment_tree_row_click_opens_without_collapsing() -> None:
     source = _read(APP_PATH)
     assert 'const isExpanded = sidebarState.expandedEquipmentIds.has(node.id);' in source
-    assert 'if (hasChildren && !sidebarState.expandedEquipmentIds.has(node.id)) {' in source
+    assert "const didExpand = hasChildren && !sidebarState.expandedEquipmentIds.has(node.id);" in source
+    assert "if (didExpand) {" in source
+    assert "const selectionIsNoOp =" in source
     assert 'if (event.target instanceof Element && event.target.closest(".tree-expander")) return;' in source
     assert 'row.addEventListener("click", (event) => {' in source
     assert "void selectEquipmentNode(node);" in source
@@ -39,6 +41,14 @@ def test_equipment_filter_apply_expands_ancestor_paths() -> None:
     assert "while (parentId) {" in source
     assert "expanded.add(parentId);" in source
     assert "expandEquipmentTreeForFilter(nextFilter);" in source
+
+
+def test_sidebar_scroll_restore_is_resilient_to_rapid_rerenders() -> None:
+    source = _read(APP_PATH)
+    assert "function restoreSidebarScroll(host, key) {" in source
+    assert "host.scrollTop = target;" in source
+    assert "if (!host.isConnected) return;" in source
+    assert "requestAnimationFrame(() => {" in source
 
 
 def test_equipment_tree_expander_hitbox_is_more_obvious() -> None:
