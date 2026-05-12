@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -46,6 +47,8 @@ class ItemAttribute(BaseModel):
     reference: str | None = None
     data_source: str | None = None
     categories: list[str] = Field(default_factory=list)
+    unit_of_measurement: str | None = None
+    sub_attributes: list[dict[str, Any]] = Field(default_factory=list)
     has_timeseries_reference: bool = False
     is_timeseries_data_source: bool = False
 
@@ -94,6 +97,8 @@ class EquipmentSensor(BaseModel):
     label: str
     reference: str | None = None
     categories: list[str] = Field(default_factory=list)
+    unit_of_measurement: str | None = None
+    unit_metadata_loaded: bool = False
     is_timeseries_data_source: bool = False
 
 

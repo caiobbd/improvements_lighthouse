@@ -272,6 +272,23 @@ class ProfilingAdapter:
         return text or None
 
     @classmethod
+    def _resolve_attribute_unit_of_measurement(
+        cls,
+        *,
+        unit_of_measurement: Any,
+        sub_attributes: Any,
+    ) -> str | None:
+        direct = cls._string_or_none(unit_of_measurement)
+        if direct is not None:
+            return direct
+
+        for entry in cls._parse_json_like_list(sub_attributes):
+            candidate = cls._resolve_threshold_unit(entry)
+            if candidate is not None:
+                return candidate
+        return None
+
+    @classmethod
     def _extract_event_data_field(
         cls,
         row: dict[str, Any],
@@ -920,6 +937,7 @@ class ProfilingAdapter:
 
         attributes: list[ItemAttribute] = []
         for _, row in frame.iterrows():
+            sub_attributes = self._parse_json_like_list(row.get("sub_attributes"))
             reference = None
             if "reference" in frame.columns and pd.notna(row.get("reference")):
                 reference = str(row.get("reference"))
@@ -927,6 +945,10 @@ class ProfilingAdapter:
             if "data_source" in frame.columns and pd.notna(row.get("data_source")):
                 data_source = str(row.get("data_source"))
             categories = self._normalize_categories(row.get("categories"))
+            unit_of_measurement = self._resolve_attribute_unit_of_measurement(
+                unit_of_measurement=row.get("unit_of_measurement"),
+                sub_attributes=sub_attributes,
+            )
             is_timeseries_data_source = self._is_timeseries_data_source(data_source)
             attributes.append(
                 ItemAttribute(
@@ -935,6 +957,8 @@ class ProfilingAdapter:
                     reference=reference,
                     data_source=data_source,
                     categories=categories,
+                    unit_of_measurement=unit_of_measurement,
+                    sub_attributes=sub_attributes,
                     has_timeseries_reference=bool(reference),
                     is_timeseries_data_source=is_timeseries_data_source,
                 )
@@ -1300,6 +1324,8 @@ class ProfilingAdapter:
                     label=f"{attribute_name}{label_suffix}",
                     reference=reference,
                     categories=[],
+                    unit_of_measurement=attribute.unit_of_measurement,
+                    unit_metadata_loaded=True,
                     is_timeseries_data_source=bool(attribute.is_timeseries_data_source),
                 )
                 sensor_by_key[key] = existing

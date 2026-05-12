@@ -22,7 +22,7 @@ const SENSOR_DRAG_MIME = "application/x-lighthouse-sensor-tag";
 const GLOBAL_SENSOR_DRAG_KEY = "__lighthouseDraggedSensorTag";
 const ALARM_NARRATIVE_COLLAPSE_THRESHOLD = 900;
 const UNIT_FALLBACK_LABEL = "N/A";
-const CHART_TITLE_SEPARATOR = " — ";
+const CHART_TITLE_SEPARATOR = " - ";
 
 const tabNavigationRoot = document.getElementById("tab-navigation");
 const pageControlsRoot = document.getElementById("page-controls");
@@ -48,6 +48,7 @@ const sidebarState = {
   sensorsError: "",
   sensorCategories: [],
   sensorList: [],
+  unitMetadataReadyByEquipmentId: new Map(),
   expandedSensorCategories: new Set(),
   activeDetailTab: "sensors",
   loadingEvents: false,
@@ -199,6 +200,13 @@ function normalizeSensor(rawSensor) {
           rawSensor.uom ??
           "",
       ).trim() || null,
+    unitMetadataLoaded:
+      rawSensor.unit_metadata_loaded === true ||
+      rawSensor.unitMetadataLoaded === true ||
+      Object.prototype.hasOwnProperty.call(rawSensor, "unit") ||
+      Object.prototype.hasOwnProperty.call(rawSensor, "unit_of_measurement") ||
+      Object.prototype.hasOwnProperty.call(rawSensor, "unitOfMeasurement") ||
+      Object.prototype.hasOwnProperty.call(rawSensor, "uom"),
     isTimeseriesDataSource:
       rawSensor.is_timeseries_data_source === true || rawSensor.isTimeseriesDataSource === true,
   };
@@ -692,6 +700,7 @@ function normalizeSensorCategories(payload) {
   const categories = [];
   const allSensors = [];
   const sensorByKey = new Map();
+  let unitMetadataReady = true;
   const filteredCategoryNames = new Set([
     "hidden",
     "uncategorized",
@@ -719,6 +728,9 @@ function normalizeSensorCategories(payload) {
     }
     categories.push({ category: categoryName, sensors });
     sensors.forEach((sensor) => {
+      if (sensor.unitMetadataLoaded !== true) {
+        unitMetadataReady = false;
+      }
       if (!sensorByKey.has(sensor.key)) {
         sensorByKey.set(sensor.key, sensor);
       } else {
@@ -737,7 +749,7 @@ function normalizeSensorCategories(payload) {
     entry.sensors.sort((left, right) => left.label.localeCompare(right.label));
   });
   allSensors.sort((left, right) => left.label.localeCompare(right.label));
-  return { categories, allSensors };
+  return { categories, allSensors, unitMetadataReady };
 }
 
 async function preloadIntelEvents() {
@@ -842,6 +854,7 @@ async function selectEquipmentNode(node, options = {}) {
   sidebarState.sensorsError = "";
   sidebarState.sensorCategories = [];
   sidebarState.sensorList = [];
+  sidebarState.unitMetadataReadyByEquipmentId.set(node.id, false);
   sidebarState.eventsError = "";
   sidebarState.eventsList = [];
   sidebarState.eventStatusOptions = [];
@@ -853,6 +866,7 @@ async function selectEquipmentNode(node, options = {}) {
     const normalized = normalizeSensorCategories(payload);
     sidebarState.sensorCategories = normalized.categories;
     sidebarState.sensorList = normalized.allSensors;
+    sidebarState.unitMetadataReadyByEquipmentId.set(node.id, normalized.unitMetadataReady);
     sidebarState.expandedSensorCategories = new Set(
       normalized.categories.map((entry) => entry.category),
     );
@@ -860,6 +874,7 @@ async function selectEquipmentNode(node, options = {}) {
     sidebarState.sensorsError = error?.message || "Unable to load sensors for equipment.";
     sidebarState.sensorCategories = [];
     sidebarState.sensorList = [];
+    sidebarState.unitMetadataReadyByEquipmentId.set(node.id, false);
   } finally {
     sidebarState.loadingSensors = false;
     invalidateSidebarRender();
@@ -1000,6 +1015,12 @@ function getNormalizedUnitLabel(sensor) {
   return unitLabel || UNIT_FALLBACK_LABEL;
 }
 
+function isUnitMetadataReadyForEquipment(itemId) {
+  const normalizedItemId = String(itemId || "").trim();
+  if (!normalizedItemId) return false;
+  return sidebarState.unitMetadataReadyByEquipmentId.get(normalizedItemId) === true;
+}
+
 function buildChartsGroupedByUnit(sensors, titlePrefix) {
   const tagsByUnit = new Map();
   (Array.isArray(sensors) ? sensors : []).forEach((sensor) => {
@@ -1017,6 +1038,10 @@ function buildChartsGroupedByUnit(sensors, titlePrefix) {
 }
 
 async function plotSensorsByUnitForEquipment(node) {
+  if (!isUnitMetadataReadyForEquipment(node?.id)) {
+    setSidebarNotice("Unit metadata is still loading for this equipment.");
+    return;
+  }
   await selectEquipmentNode(node);
   if (!sidebarState.sensorList.length) {
     setSidebarNotice("No timeseries sensors available for this equipment.");
@@ -1033,6 +1058,10 @@ async function plotSensorsByUnitForEquipment(node) {
 }
 
 function plotSensorCategoryByUnit(category) {
+  if (!isUnitMetadataReadyForEquipment(sidebarState.selectedEquipmentId)) {
+    setSidebarNotice("Unit metadata is still loading for this equipment.");
+    return;
+  }
   const sensors = Array.isArray(category?.sensors) ? category.sensors : [];
   const categoryName = String(category?.category || "Category").trim();
   const charts = buildChartsGroupedByUnit(sensors, categoryName);
@@ -1079,6 +1108,7 @@ function renderEquipmentTreeList(target, snapshot) {
             },
             {
               label: "Plot Sensors by Unit",
+              disabled: !isUnitMetadataReadyForEquipment(node.id),
               onSelect: async () => {
                 await plotSensorsByUnitForEquipment(node);
               },
@@ -1254,6 +1284,7 @@ function renderSensorSidebar(target, snapshot) {
           },
           {
             label: "Plot Category (group by units)",
+            disabled: !isUnitMetadataReadyForEquipment(selectedNode?.id),
             onSelect: () => {
               plotSensorCategoryByUnit(category);
             },
@@ -2197,3 +2228,4 @@ async function bootstrap() {
 }
 
 void bootstrap();
+
