@@ -213,6 +213,121 @@ function normalizeSensor(rawSensor) {
   return sensor;
 }
 
+function resolveUnitFromAttributeEntry(rawAttribute) {
+  const directUnit = String(
+    rawAttribute?.unit_of_measurement ??
+      rawAttribute?.unitOfMeasurement ??
+      rawAttribute?.unit ??
+      rawAttribute?.uom ??
+      "",
+  ).trim();
+  if (directUnit) {
+    return directUnit;
+  }
+
+  const subAttributes = Array.isArray(rawAttribute?.sub_attributes)
+    ? rawAttribute.sub_attributes
+    : Array.isArray(rawAttribute?.subAttributes)
+      ? rawAttribute.subAttributes
+      : [];
+  for (const entry of subAttributes) {
+    const subUnit = String(
+      entry?.unit ?? entry?.unit_of_measurement ?? entry?.unitOfMeasurement ?? entry?.uom ?? "",
+    ).trim();
+    if (subUnit) {
+      return subUnit;
+    }
+  }
+  return null;
+}
+
+function buildItemAttributeUnitLookups(attributes) {
+  const byAttributeId = new Map();
+  const byAttributeName = new Map();
+
+  (Array.isArray(attributes) ? attributes : []).forEach((rawAttribute) => {
+    const attributeId = String(
+      rawAttribute?.id ?? rawAttribute?.attribute_id ?? rawAttribute?.attributeId ?? "",
+    ).trim();
+    const attributeName = String(
+      rawAttribute?.name ?? rawAttribute?.attribute_name ?? rawAttribute?.attributeName ?? "",
+    )
+      .trim()
+      .toLowerCase();
+    const resolvedUnit = resolveUnitFromAttributeEntry(rawAttribute);
+
+    if (attributeId) {
+      byAttributeId.set(attributeId, resolvedUnit);
+    }
+    if (attributeName) {
+      byAttributeName.set(attributeName, resolvedUnit);
+    }
+  });
+
+  return {
+    byAttributeId,
+    byAttributeName,
+  };
+}
+
+function applyResolvedUnitToSensor(sensor, unitLookups) {
+  if (!sensor) return;
+  const byAttributeId = unitLookups?.byAttributeId instanceof Map ? unitLookups.byAttributeId : new Map();
+  const byAttributeName =
+    unitLookups?.byAttributeName instanceof Map ? unitLookups.byAttributeName : new Map();
+
+  const attributeId = String(sensor.attributeId || "").trim();
+  const attributeName = String(sensor.attributeName || "").trim().toLowerCase();
+  let resolvedUnit = String(sensor.unit ?? "").trim() || null;
+
+  if (!resolvedUnit && attributeId && byAttributeId.has(attributeId)) {
+    resolvedUnit = byAttributeId.get(attributeId);
+  }
+  if (!resolvedUnit && attributeName && byAttributeName.has(attributeName)) {
+    resolvedUnit = byAttributeName.get(attributeName);
+  }
+
+  sensor.unit = String(resolvedUnit ?? "").trim() || null;
+  sensor.unitMetadataLoaded = true;
+}
+
+async function finalizeUnitMetadataForEquipment(node, normalizedSensors) {
+  const categories = Array.isArray(normalizedSensors?.categories) ? normalizedSensors.categories : [];
+  const allSensors = Array.isArray(normalizedSensors?.allSensors) ? normalizedSensors.allSensors : [];
+
+  if (allSensors.length === 0) {
+    normalizedSensors.unitMetadataReady = true;
+    return normalizedSensors;
+  }
+
+  const hasMissingMetadata = allSensors.some((sensor) => sensor.unitMetadataLoaded !== true);
+  let unitLookups = { byAttributeId: new Map(), byAttributeName: new Map() };
+
+  if (hasMissingMetadata) {
+    try {
+      const payload = await getItemAttributes({
+        item_id: node?.id,
+        asset_name: node?.name,
+        timeseries_only: true,
+      });
+      unitLookups = buildItemAttributeUnitLookups(payload?.attributes);
+    } catch (error) {
+      console.warn("Unable to load item attributes for unit metadata fallback.", error);
+    }
+  }
+
+  categories.forEach((category) => {
+    (Array.isArray(category?.sensors) ? category.sensors : []).forEach((sensor) => {
+      applyResolvedUnitToSensor(sensor, unitLookups);
+    });
+  });
+  allSensors.forEach((sensor) => {
+    applyResolvedUnitToSensor(sensor, unitLookups);
+  });
+  normalizedSensors.unitMetadataReady = true;
+  return normalizedSensors;
+}
+
 function parseDateTime(value) {
   if (!value) return null;
   const parsed = new Date(value);
@@ -700,7 +815,7 @@ function normalizeSensorCategories(payload) {
   const categories = [];
   const allSensors = [];
   const sensorByKey = new Map();
-  let unitMetadataReady = true;
+  let unitMetadataReady = false;
   const filteredCategoryNames = new Set([
     "hidden",
     "uncategorized",
@@ -728,9 +843,6 @@ function normalizeSensorCategories(payload) {
     }
     categories.push({ category: categoryName, sensors });
     sensors.forEach((sensor) => {
-      if (sensor.unitMetadataLoaded !== true) {
-        unitMetadataReady = false;
-      }
       if (!sensorByKey.has(sensor.key)) {
         sensorByKey.set(sensor.key, sensor);
       } else {
@@ -864,6 +976,7 @@ async function selectEquipmentNode(node, options = {}) {
   try {
     const payload = await getEquipmentSensors({ item_id: node.id, asset_name: node.name });
     const normalized = normalizeSensorCategories(payload);
+    await finalizeUnitMetadataForEquipment(node, normalized);
     sidebarState.sensorCategories = normalized.categories;
     sidebarState.sensorList = normalized.allSensors;
     sidebarState.unitMetadataReadyByEquipmentId.set(node.id, normalized.unitMetadataReady);

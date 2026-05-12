@@ -66,9 +66,24 @@ Add two new context-menu actions on Charts page to plot sensors grouped by measu
 - Done:
   - Automated coverage exists for new action behavior, gating rules, and key regression guard on existing flow.
 
+### Task 4 - Fix Readiness Stall After Sensor Sidebar Load
+- Files: `frontend/charts/app.js`, `tests/frontend/test_context_menu_unit_group_plot_actions.py`.
+- Action:
+  - Debug and remove dependency on pre-populated unit flags from `/equipment-sensors` payload only.
+  - After sensor sidebar payload is loaded, run a unit-enrichment pass:
+    - Keep units already present on sensor payload.
+    - Fallback to `/item-attributes` lookup to resolve units (including `sub_attributes` unit hints).
+    - Mark sensor unit metadata as loaded even when resolved unit is empty/null (so `N/A` bucket remains valid).
+  - Set equipment unit-metadata readiness to `true` after the enrichment pass finishes, so context menu options unlock right after side-panel sensor load completes.
+- Verify (automated):
+  - Frontend test updated with assertions for enrichment fallback and load-sequence hook.
+- Done:
+  - Unit-group actions now unlock after sensor-side-panel load completion instead of waiting for unit flags to already exist in raw sensor payload.
+
 ## Success Criteria
 - Both context-menu actions are available and functional.
 - Unit-group actions are disabled before unit metadata load and enabled afterward.
+- Unit-group actions become enabled immediately after sensor load pipeline finishes unit enrichment for the selected equipment.
 - Chart creation is unit-grouped with deterministic titles.
 - `N/A` grouping is explicit and consolidated.
 - Unit metadata is resolved from direct attribute fields and sub-attributes during equipment sensor load.

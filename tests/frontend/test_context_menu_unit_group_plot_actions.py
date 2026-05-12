@@ -37,6 +37,10 @@ def test_unit_grouping_actions_are_gated_by_unit_metadata_readiness() -> None:
     source = _read(APP_PATH)
     assert "unitMetadataReadyByEquipmentId: new Map()," in source
     assert "function isUnitMetadataReadyForEquipment(itemId)" in source
+    assert "async function finalizeUnitMetadataForEquipment(node, normalizedSensors)" in source
+    assert "await finalizeUnitMetadataForEquipment(node, normalized);" in source
+    assert "buildItemAttributeUnitLookups(payload?.attributes)" in source
+    assert 'console.warn("Unable to load item attributes for unit metadata fallback.", error);' in source
     assert "disabled: !isUnitMetadataReadyForEquipment(node.id)," in source
     assert "disabled: !isUnitMetadataReadyForEquipment(selectedNode?.id)," in source
     assert 'setSidebarNotice("Unit metadata is still loading for this equipment.");' in source
