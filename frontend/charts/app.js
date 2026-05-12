@@ -21,6 +21,8 @@ const SIDEBAR_COLLAPSED_STORAGE_KEY = "lighthouse.charts.sidebars.collapsed.v1";
 const SENSOR_DRAG_MIME = "application/x-lighthouse-sensor-tag";
 const GLOBAL_SENSOR_DRAG_KEY = "__lighthouseDraggedSensorTag";
 const ALARM_NARRATIVE_COLLAPSE_THRESHOLD = 900;
+const UNIT_FALLBACK_LABEL = "N/A";
+const CHART_TITLE_SEPARATOR = " — ";
 
 const tabNavigationRoot = document.getElementById("tab-navigation");
 const pageControlsRoot = document.getElementById("page-controls");
@@ -189,6 +191,14 @@ function normalizeSensor(rawSensor) {
       ? rawSensor.categories.map((entry) => String(entry || "")).filter(Boolean)
       : [],
     reference: rawSensor.reference ? String(rawSensor.reference) : "",
+    unit:
+      String(
+        rawSensor.unit ??
+          rawSensor.unit_of_measurement ??
+          rawSensor.unitOfMeasurement ??
+          rawSensor.uom ??
+          "",
+      ).trim() || null,
     isTimeseriesDataSource:
       rawSensor.is_timeseries_data_source === true || rawSensor.isTimeseriesDataSource === true,
   };
@@ -985,6 +995,54 @@ function plotSensorCategorySensors(category) {
   addChartsWithCap(charts);
 }
 
+function getNormalizedUnitLabel(sensor) {
+  const unitLabel = String(sensor?.unit ?? "").trim();
+  return unitLabel || UNIT_FALLBACK_LABEL;
+}
+
+function buildChartsGroupedByUnit(sensors, titlePrefix) {
+  const tagsByUnit = new Map();
+  (Array.isArray(sensors) ? sensors : []).forEach((sensor) => {
+    const tag = sensorToTag(sensor);
+    if (!tag) return;
+    const unitLabel = getNormalizedUnitLabel(sensor);
+    const existing = tagsByUnit.get(unitLabel) || [];
+    existing.push(tag);
+    tagsByUnit.set(unitLabel, existing);
+  });
+
+  return Array.from(tagsByUnit.entries()).map(([unitLabel, tags]) =>
+    buildChartFromTags(tags, `${titlePrefix}${CHART_TITLE_SEPARATOR}${unitLabel}`),
+  );
+}
+
+async function plotSensorsByUnitForEquipment(node) {
+  await selectEquipmentNode(node);
+  if (!sidebarState.sensorList.length) {
+    setSidebarNotice("No timeseries sensors available for this equipment.");
+    return;
+  }
+
+  const assetName = String(node?.name || "Equipment").trim();
+  const charts = buildChartsGroupedByUnit(sidebarState.sensorList, assetName);
+  if (!charts.length) {
+    setSidebarNotice("No unit-grouped charts were generated.");
+    return;
+  }
+  addChartsWithCap(charts);
+}
+
+function plotSensorCategoryByUnit(category) {
+  const sensors = Array.isArray(category?.sensors) ? category.sensors : [];
+  const categoryName = String(category?.category || "Category").trim();
+  const charts = buildChartsGroupedByUnit(sensors, categoryName);
+  if (!charts.length) {
+    setSidebarNotice("No timeseries sensors available in this category.");
+    return;
+  }
+  addChartsWithCap(charts);
+}
+
 function renderEquipmentTreeList(target, snapshot) {
   target.innerHTML = "";
   const filter = sidebarState.equipmentFilter.trim();
@@ -1017,6 +1075,12 @@ function renderEquipmentTreeList(target, snapshot) {
               label: "Plot by category",
               onSelect: async () => {
                 await plotByCategoryForEquipment(node);
+              },
+            },
+            {
+              label: "Plot Sensors by Unit",
+              onSelect: async () => {
+                await plotSensorsByUnitForEquipment(node);
               },
             },
             {
@@ -1186,6 +1250,12 @@ function renderSensorSidebar(target, snapshot) {
             label: "Plot category sensors",
             onSelect: () => {
               plotSensorCategorySensors(category);
+            },
+          },
+          {
+            label: "Plot Category (group by units)",
+            onSelect: () => {
+              plotSensorCategoryByUnit(category);
             },
           },
         ],

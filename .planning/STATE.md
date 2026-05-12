@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-04-13)
 Phase: 8 (cross-chart-hover-and-pinned-cursors) — EXECUTING
 Plan: 1 of 4
 Status: Executing Phase 8
-Last activity: 2026-04-27 -- Completed quick task 260427-gi3: fix chart grid resize and date-range x-axis zoom refresh bugs
+Last activity: 2026-05-12 -- Completed quick task 260512-ily: add unit-grouped plot actions for asset/category context menus
 **Last Activity Description:** Phase 8 execution started
 
 Progress: [#######...] 70%
@@ -65,6 +65,7 @@ Progress: [#######...] 70%
 | 260422-cck | fix ghost empty-state card when charts exist | 2026-04-22 | 09f7a13 | [260422-cck-fix-ghost-empty-state-card-when-charts-e](./quick/260422-cck-fix-ghost-empty-state-card-when-charts-e/) |
 | 260422-d95 | replace double-click zoom reset with actions menu reset zoom controls | 2026-04-22 | pending | [260422-d95-replace-double-click-zoom-reset-with-act](./quick/260422-d95-replace-double-click-zoom-reset-with-act/) |
 | 260427-gi3 | fix chart grid resize and date-range x-axis zoom refresh bugs | 2026-04-27 | pending | [260427-gi3-fix-chart-grid-resize-and-date-range-x-a](./quick/260427-gi3-fix-chart-grid-resize-and-date-range-x-a/) |
+| 260512-ily | add unit-grouped plot actions for asset/category context menus | 2026-05-12 | pending | [260512-ily-feature-add-context-menu-actions-to-plot](./quick/260512-ily-feature-add-context-menu-actions-to-plot/) |
 
 ## Session Continuity
 
