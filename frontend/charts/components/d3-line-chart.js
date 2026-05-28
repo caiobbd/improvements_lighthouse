@@ -13,8 +13,10 @@ const POINTER_CLICK_TOLERANCE = 4;
 const PAN_ZONE_RATIO = 0.2;
 const PIN_LIMIT = 5;
 const PIN_HIT_RADIUS = 8;
+const PIN_HIGHLIGHT_RADIUS = PIN_HIT_RADIUS + 4;
 const CURSOR_HEADER_HEIGHT = 18;
 const CURSOR_HEADER_OFFSET = 20;
+const PIN_DRAG_SELECTION_LOCK_CLASS = "chart-pin-drag-selection-lock";
 
 let d3ModulePromise = null;
 
@@ -466,6 +468,14 @@ function renderLineChartWithD3(d3, config) {
   const previewLayer = root.append("g").attr("class", "sync-preview-layer");
   const linesLayer = root.append("g").attr("clip-path", `url(#${clipId})`);
   const cursorLayer = root.append("g").attr("class", "chart-cursor-layer");
+  const panZoneHint = cursorLayer
+    .append("rect")
+    .attr("class", "pan-zone-hover-hint")
+    .attr("x", 0)
+    .attr("y", innerHeight * (1 - PAN_ZONE_RATIO))
+    .attr("width", innerWidth)
+    .attr("height", innerHeight * PAN_ZONE_RATIO)
+    .style("display", "none");
   const hoverLayer = cursorLayer.append("g").attr("class", "hover-cursor-layer");
   const pinnedLayer = cursorLayer.append("g").attr("class", "pinned-cursor-layer");
   const splitAxisLayer = root.append("g").attr("class", "split-axis-layer");
@@ -557,6 +567,8 @@ function renderLineChartWithD3(d3, config) {
     cursorState?.pinnedCursors || interactionState?.pinnedCursors || [],
   );
   let pinLayouts = [];
+  let hoveredPinId = null;
+  let panZoneHintVisible = false;
   let pointerInChart = false;
 
   let renderLines = hasSeries
@@ -764,9 +776,21 @@ function renderLineChartWithD3(d3, config) {
     cursorLayer.raise();
     renderAlarmSpan();
     renderPreviewSpan();
+    renderPanZoneHint();
     renderHoverCursor();
     renderPinnedCursors();
     persistInteractionState();
+  }
+
+  function setPanZoneHintVisible(nextVisible) {
+    const normalized = nextVisible === true;
+    if (panZoneHintVisible === normalized) return false;
+    panZoneHintVisible = normalized;
+    return true;
+  }
+
+  function renderPanZoneHint() {
+    panZoneHint.style("display", panZoneHintVisible ? "block" : "none");
   }
 
   const formatCursorTimestamp = d3.utcFormat("%m/%d/%Y %H:%M:%S");
@@ -897,7 +921,10 @@ function renderLineChartWithD3(d3, config) {
   function renderPinnedCursors() {
     pinLayouts = [];
     pinnedLayer.selectAll("*").remove();
-    if (!pinnedCursors.length) return;
+    if (!pinnedCursors.length) {
+      hoveredPinId = null;
+      return;
+    }
 
     pinnedCursors.forEach((pin) => {
       const timestamp = new Date(pin.timestamp);
@@ -921,6 +948,15 @@ function renderLineChartWithD3(d3, config) {
       const valuesLeft = clamp(x - valuesWidth / 2, 0, innerWidth - valuesWidth);
 
       const group = pinnedLayer.append("g").attr("class", "pinned-cursor-group");
+
+      group
+        .append("rect")
+        .attr("class", "pinned-cursor-hit-zone")
+        .attr("x", x - PIN_HIGHLIGHT_RADIUS)
+        .attr("y", 0)
+        .attr("width", PIN_HIGHLIGHT_RADIUS * 2)
+        .attr("height", innerHeight)
+        .style("display", pin.id === hoveredPinId ? "block" : "none");
 
       group
         .append("line")
@@ -989,6 +1025,13 @@ function renderLineChartWithD3(d3, config) {
     });
   }
 
+  function setHoveredPinId(nextPinId) {
+    const normalized = typeof nextPinId === "string" ? nextPinId : null;
+    if (hoveredPinId === normalized) return false;
+    hoveredPinId = normalized;
+    return true;
+  }
+
   function findPinHitTarget(coords) {
     const layout = pinLayouts.find((entry) => {
       const inHeader =
@@ -1000,6 +1043,14 @@ function renderLineChartWithD3(d3, config) {
       return inHeader || nearLine;
     });
     return layout || null;
+  }
+
+  function syncHoveredPin(coords) {
+    if (!coords) {
+      return setHoveredPinId(null);
+    }
+    const target = findPinHitTarget(coords);
+    return setHoveredPinId(target?.id || null);
   }
 
   function applyPointerCursor(coords) {
@@ -1031,6 +1082,9 @@ function renderLineChartWithD3(d3, config) {
     const canonical =
       typeof onPinnedCursorsChange === "function" ? onPinnedCursorsChange(normalized) : normalized;
     pinnedCursors = normalizePinnedCursors(canonical);
+    if (!pinnedCursors.some((pin) => pin.id === hoveredPinId)) {
+      hoveredPinId = null;
+    }
     interactionState.pinnedCursors = pinnedCursors.map((pin) => ({ ...pin }));
     persistInteractionState();
     return pinnedCursors;
@@ -1125,11 +1179,56 @@ function renderLineChartWithD3(d3, config) {
     };
   }
 
+  function clearDocumentSelection() {
+    const selection = window.getSelection?.();
+    if (!selection || selection.rangeCount === 0) return;
+    try {
+      selection.removeAllRanges();
+    } catch {}
+  }
+
+  function setPinDragSelectionLock(enabled) {
+    document.body?.classList.toggle(PIN_DRAG_SELECTION_LOCK_CLASS, Boolean(enabled));
+  }
+
+  function enablePinDragSelectionLock() {
+    clearDocumentSelection();
+    setPinDragSelectionLock(true);
+  }
+
+  function disablePinDragSelectionLock() {
+    setPinDragSelectionLock(false);
+  }
+
+  function releasePointerCaptureSafely(pointerId) {
+    if (pointerId == null) return;
+    const interactionNode = interactionLayer.node();
+    if (!interactionNode?.releasePointerCapture) return;
+    try {
+      if (interactionNode.hasPointerCapture?.(pointerId)) {
+        interactionNode.releasePointerCapture(pointerId);
+      }
+    } catch {}
+  }
+
+  function cleanupPinDrag(pointerId) {
+    try {
+      releasePointerCaptureSafely(pointerId);
+    } finally {
+      disablePinDragSelectionLock();
+    }
+  }
+
   function onPointerDown(event) {
     if (event.button !== 0) return;
     const coords = getEventCoordinates(event);
     const pinTarget = findPinHitTarget(coords);
     if (pinTarget) {
+      event.preventDefault();
+      enablePinDragSelectionLock();
+      setPanZoneHintVisible(false);
+      renderPanZoneHint();
+      setHoveredPinId(pinTarget.id);
       gesture = {
         mode: "pin-drag",
         pointerId: event.pointerId,
@@ -1149,6 +1248,10 @@ function renderLineChartWithD3(d3, config) {
 
     const mode = resolveGestureMode(event, coords, innerHeight);
     if (mode === "zoom-y" && (!hasSeries || splitMode || normalizationEnabled)) return;
+    const showPanHint = isPanZone(coords.y, innerHeight) && !pinTarget;
+    if (setPanZoneHintVisible(showPanHint)) {
+      renderPanZoneHint();
+    }
     gesture = {
       mode,
       pointerId: event.pointerId,
@@ -1172,6 +1275,9 @@ function renderLineChartWithD3(d3, config) {
     if (!gesture || event.pointerId !== gesture.pointerId) {
       pointerInChart = true;
       const coords = getEventCoordinates(event);
+      const didHoverPinChange = syncHoveredPin(coords);
+      const showPanHint = isPanZone(coords.y, innerHeight) && !findPinHitTarget(coords);
+      const didPanHintChange = setPanZoneHintVisible(showPanHint);
       applyPointerCursor(coords);
       const timestamp = findNearestTimestampAtX(coords.x);
       hoverTimestamp = timestamp;
@@ -1181,6 +1287,12 @@ function renderLineChartWithD3(d3, config) {
       }
       renderHoverTooltip(event, timestamp);
       renderHoverCursor();
+      if (didHoverPinChange) {
+        renderPinnedCursors();
+      }
+      if (didPanHintChange) {
+        renderPanZoneHint();
+      }
       persistInteractionState();
       return;
     }
@@ -1205,10 +1317,22 @@ function renderLineChartWithD3(d3, config) {
     }
 
     if (gesture.mode === "pin-drag") {
+      event.preventDefault();
+      clearDocumentSelection();
+      if (setPanZoneHintVisible(false)) {
+        renderPanZoneHint();
+      }
+      setHoveredPinId(gesture.pinId);
       if (coords.rawX < 0 || coords.rawX > innerWidth) {
-        interactionLayer.node().releasePointerCapture(gesture.pointerId);
-        removePinnedCursor(gesture.pinId);
-        gesture = null;
+        const pinDragPointerId = gesture.pointerId;
+        const pinDragId = gesture.pinId;
+        try {
+          removePinnedCursor(pinDragId);
+          setHoveredPinId(null);
+        } finally {
+          cleanupPinDrag(pinDragPointerId);
+          gesture = null;
+        }
         interactionLayer.style("cursor", "crosshair");
         renderAll();
         return;
@@ -1231,6 +1355,10 @@ function renderLineChartWithD3(d3, config) {
       ];
       currentXDomain = clampTimeDomain(next, fullXDomain) || gesture.originXDomain;
       scheduleRender();
+      const showPanHint = isPanZone(coords.y, innerHeight);
+      if (setPanZoneHintVisible(showPanHint)) {
+        renderPanZoneHint();
+      }
       applyPointerCursor(coords);
       return;
     }
@@ -1258,6 +1386,9 @@ function renderLineChartWithD3(d3, config) {
       return;
     }
     applyPointerCursor(coords);
+    if (setPanZoneHintVisible(false)) {
+      renderPanZoneHint();
+    }
   }
 
   function onPointerUp(event) {
@@ -1270,10 +1401,20 @@ function renderLineChartWithD3(d3, config) {
     const endY = gesture.currentY;
 
     if (mode === "pin-drag") {
-      interactionLayer.node().releasePointerCapture(gesture.pointerId);
-      gesture = null;
-      applyPointerCursor(getEventCoordinates(event));
-      renderAll();
+      event.preventDefault();
+      clearDocumentSelection();
+      const pinDragPointerId = gesture.pointerId;
+      try {
+        const releaseCoords = getEventCoordinates(event);
+        const showPanHint = isPanZone(releaseCoords.y, innerHeight) && !findPinHitTarget(releaseCoords);
+        setPanZoneHintVisible(showPanHint);
+        syncHoveredPin(releaseCoords);
+        applyPointerCursor(releaseCoords);
+        renderAll();
+      } finally {
+        cleanupPinDrag(pinDragPointerId);
+        gesture = null;
+      }
       return;
     }
 
@@ -1282,7 +1423,11 @@ function renderLineChartWithD3(d3, config) {
       interactionLayer.node().releasePointerCapture(gesture.pointerId);
       clearMarqueeRect();
       gesture = null;
-      applyPointerCursor(getEventCoordinates(event));
+      const releaseCoords = getEventCoordinates(event);
+      const showPanHint = isPanZone(releaseCoords.y, innerHeight) && !findPinHitTarget(releaseCoords);
+      setPanZoneHintVisible(showPanHint);
+      syncHoveredPin(releaseCoords);
+      applyPointerCursor(releaseCoords);
       renderAll();
       return;
     }
@@ -1303,20 +1448,36 @@ function renderLineChartWithD3(d3, config) {
     interactionLayer.node().releasePointerCapture(gesture.pointerId);
     clearMarqueeRect();
     gesture = null;
-    applyPointerCursor(getEventCoordinates(event));
+    const releaseCoords = getEventCoordinates(event);
+    const showPanHint = isPanZone(releaseCoords.y, innerHeight) && !findPinHitTarget(releaseCoords);
+    setPanZoneHintVisible(showPanHint);
+    syncHoveredPin(releaseCoords);
+    applyPointerCursor(releaseCoords);
     renderAll();
   }
 
   function onPointerCancel(event) {
     if (!gesture || event.pointerId !== gesture.pointerId) return;
-    interactionLayer.node().releasePointerCapture(gesture.pointerId);
+    const wasPinDrag = gesture.mode === "pin-drag";
+    const pointerId = gesture.pointerId;
+    if (wasPinDrag) {
+      event.preventDefault();
+      clearDocumentSelection();
+      cleanupPinDrag(pointerId);
+    } else {
+      releasePointerCaptureSafely(pointerId);
+    }
     clearMarqueeRect();
     if (typeof onSyncPreviewChange === "function") {
       onSyncPreviewChange(null);
     }
     previewDomain = null;
     gesture = null;
-    applyPointerCursor(getEventCoordinates(event));
+    const cancelCoords = getEventCoordinates(event);
+    const showPanHint = isPanZone(cancelCoords.y, innerHeight) && !findPinHitTarget(cancelCoords);
+    setPanZoneHintVisible(showPanHint);
+    syncHoveredPin(cancelCoords);
+    applyPointerCursor(cancelCoords);
     renderAll();
   }
 
@@ -1324,12 +1485,16 @@ function renderLineChartWithD3(d3, config) {
     pointerInChart = false;
     hideTooltip();
     if (gesture) return;
+    setPanZoneHintVisible(false);
+    setHoveredPinId(null);
     hoverTimestamp = null;
     interactionState.hoverTimestamp = null;
     if (typeof onHoverTimestampChange === "function") {
       onHoverTimestampChange(null);
     }
     renderHoverCursor();
+    renderPanZoneHint();
+    renderPinnedCursors();
     persistInteractionState();
     interactionLayer.style("cursor", "crosshair");
   }
@@ -1422,6 +1587,12 @@ function renderLineChartWithD3(d3, config) {
   }
 
   function destroy() {
+    if (gesture?.mode === "pin-drag") {
+      cleanupPinDrag(gesture.pointerId);
+      gesture = null;
+    } else {
+      disablePinDragSelectionLock();
+    }
     if (rafHandle) {
       cancelAnimationFrame(rafHandle);
       rafHandle = null;
