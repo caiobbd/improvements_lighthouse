@@ -569,6 +569,7 @@ function renderLineChartWithD3(d3, config) {
   let pinLayouts = [];
   let hoveredPinId = null;
   let panZoneHintVisible = false;
+  let pinDragInlineSelectSnapshot = null;
   let pointerInChart = false;
 
   let renderLines = hasSeries
@@ -1188,7 +1189,24 @@ function renderLineChartWithD3(d3, config) {
   }
 
   function setPinDragSelectionLock(enabled) {
-    document.body?.classList.toggle(PIN_DRAG_SELECTION_LOCK_CLASS, Boolean(enabled));
+    const body = document.body;
+    if (!body) return;
+    body.classList.toggle(PIN_DRAG_SELECTION_LOCK_CLASS, Boolean(enabled));
+    if (enabled) {
+      if (!pinDragInlineSelectSnapshot) {
+        pinDragInlineSelectSnapshot = {
+          userSelect: body.style.userSelect || "",
+          webkitUserSelect: body.style.webkitUserSelect || "",
+        };
+      }
+      body.style.userSelect = "none";
+      body.style.webkitUserSelect = "none";
+      return;
+    }
+    if (!pinDragInlineSelectSnapshot) return;
+    body.style.userSelect = pinDragInlineSelectSnapshot.userSelect;
+    body.style.webkitUserSelect = pinDragInlineSelectSnapshot.webkitUserSelect;
+    pinDragInlineSelectSnapshot = null;
   }
 
   function enablePinDragSelectionLock() {
