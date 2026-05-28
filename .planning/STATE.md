@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 8
-current_phase_name: cross-chart-hover-and-pinned-cursors
-status: executing
-stopped_at: Phase 2.2 executed; next step is human browser verification then transition planning for Phase 3
-last_updated: "2026-04-22T14:22:26.636Z"
-last_activity: 2026-04-22 -- Phase 8 execution started
+current_phase: 09
+current_phase_name: scalable-frontend-navigation-and-ux-architecture
+status: planning
+stopped_at: Phase 09 scope under review; execution paused before 09-01.
+last_updated: "2026-05-28T17:30:00-03:00"
+last_activity: 2026-05-28 -- Rolled back 09-01 implementation; preparing scope review before execution.
 progress:
-  total_phases: 13
-  completed_phases: 11
-  total_plans: 52
-  completed_plans: 44
-  percent: 85
+  total_phases: 15
+  completed_phases: 13
+  total_plans: 56
+  completed_plans: 53
+  percent: 95
 ---
 
 # Project State
@@ -23,52 +23,43 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Users can quickly spot operational deviations and act on them without digging through decorative or low-signal UI.
-**Current focus:** Phase 8 — cross-chart-hover-and-pinned-cursors
+**Current focus:** Phase 09 - scalable-frontend-navigation-and-ux-architecture
 
 ## Current Position
 
-**Current Phase:** 8
-**Current Phase Name:** cross-chart-hover-and-pinned-cursors
-Phase: 8 (cross-chart-hover-and-pinned-cursors) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 8
-Last activity: 2026-05-12 -- Completed quick task 260512-ily: add unit-grouped plot actions for asset/category context menus
-**Last Activity Description:** Phase 8 execution started
+**Current Phase:** 09
+**Current Phase Name:** scalable-frontend-navigation-and-ux-architecture
+Phase: 09 (scalable-frontend-navigation-and-ux-architecture) - PLANNING
+Plan: 1 of 3 (next)
+Status: Scope review in progress; execution paused before 09-01
+Last activity: 2026-05-28 -- Rolled back 09-01 implementation; preparing scope review before execution
 
-Progress: [#######...] 70%
+Progress: [##########] 95%
 
 ## Accumulated Context
 
 ### Decisions
 
-- Phase 1 now guarantees at least one pre-saved chart renders live API data.
-- Charts presets are backend-seeded and frontend-hydrated from `/api/v1/charts/pages`.
-- Attribute-targeted timeseries endpoint is the deterministic data path for preset charts.
-- Phase 2 baseline chart contracts now use centralized metadata for units/labels and rendering.
-- Phase 2 alarm triage is deterministic via severity/occurrence/recency ordering and id-based modal routing.
-- Phase 2.1 scope is locked: case-insensitive substring asset search (cap 50), timeseries-only attribute selection, checkbox multi-select, multi-asset chart plotting, and per-chart attribute tag editing with red `x` removal control.
-- Phase 2.1 implementation now includes selector modal, backend asset search endpoint, selectedTags chart state, and per-tag red `x` removal.
-- Phase 2.2 was inserted to harden query ergonomics and chart-page performance from first-user testing before expanding alarm/event scope.
-- Phase 2.1 remains in verifying state until final human browser confirmation is logged.
-- Phase 2.2 implementation now enforces submit-only asset search, asset-first attribute queries, 6h default sampling, timeseries cache, and hover Actions -> Add new tags flow.
+- Documentation status synchronized with disk artifacts: Phases 6, 6.1, 6.2, 6.2.1, 8, and 8.1 are now marked completed in roadmap and requirement traceability.
+- Phase 08 human UAT is complete (`08-HUMAN-UAT.md`) with 4/4 pass and no remaining gaps.
+- Phase 08 verification is complete (`08-VERIFICATION.md`) with implementation and human validation closed.
+- Phase 01 verification is now closed based on confirmed browser-level behavior across later UAT cycles.
+- Phase 09 planning is already in place (09-01, 09-02, 09-03) and execution can proceed directly.
 
 ### Blockers/Concerns
 
-- Phase 1 verification remains `human_needed` for final browser-level interaction confirmation.
-- Phase 2 verification remains `human_needed` for final visual interaction confirmation in browser.
-- Phase 1 and Phase 2 still contain pending manual browser verification debt.
+- No open `partial` or `diagnosed` UAT files in current milestone.
+- No active debug sessions.
+- Historical artifact gap: Phase `2` is represented in roadmap but has no dedicated phase directory (scope was split into 2.1/2.2), so GSD tooling counts it as `not_started`.
 
-### Quick Tasks Completed
+### Roadmap Evolution
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260422-cck | fix ghost empty-state card when charts exist | 2026-04-22 | 09f7a13 | [260422-cck-fix-ghost-empty-state-card-when-charts-e](./quick/260422-cck-fix-ghost-empty-state-card-when-charts-e/) |
-| 260422-d95 | replace double-click zoom reset with actions menu reset zoom controls | 2026-04-22 | pending | [260422-d95-replace-double-click-zoom-reset-with-act](./quick/260422-d95-replace-double-click-zoom-reset-with-act/) |
-| 260427-gi3 | fix chart grid resize and date-range x-axis zoom refresh bugs | 2026-04-27 | pending | [260427-gi3-fix-chart-grid-resize-and-date-range-x-a](./quick/260427-gi3-fix-chart-grid-resize-and-date-range-x-a/) |
-| 260512-ily | add unit-grouped plot actions for asset/category context menus | 2026-05-12 | pending | [260512-ily-feature-add-context-menu-actions-to-plot](./quick/260512-ily-feature-add-context-menu-actions-to-plot/) |
+- Phase 9 added: Scalable Frontend Navigation and UX Architecture.
+- Phase 9 context locked from user decisions and initial plan set (09-01/09-02/09-03) created.
+- Phase 9 controls refined: browser-style tab row with `+`, top-right quick ranges, reload+frequency toggle behavior, settings gear consolidation, and icon-only chart controls.
 
 ## Session Continuity
 
-Last session: 2026-04-13
-Stopped at: Phase 2.2 executed; next step is human browser verification then transition planning for Phase 3
+Last session: 2026-05-28
+Stopped at: Verification deep-dive completed and documentation synchronized.
 Resume file: None

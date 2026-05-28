@@ -9,9 +9,9 @@ import {
   getSensorContextBatch,
   getTableColumnsManifest,
 } from "./services/api-client.js";
-import { renderTabNavigation } from "./components/tab-navigation.js";
-import { renderPageControls } from "./components/page-controls.js";
-import { renderChartGrid } from "./components/chart-grid.js";
+import { renderTabNavigation } from "./components/tab-navigation.js?v=20260519-1";
+import { renderPageControls } from "./components/page-controls.js?v=20260519-1";
+import { renderChartGrid } from "./components/chart-grid.js?v=20260519-1";
 import { openChartSelectorModal } from "./components/chart-selector-modal.js";
 import { openCustomAlarmModal } from "./components/custom-alarm-modal.js?v=20260504-1";
 import { renderSafeMarkdown } from "./utils/safe-markdown.js";
@@ -1946,18 +1946,18 @@ function renderSidebars(snapshot) {
     const equipmentPane = document.createElement("section");
     equipmentPane.className = "sidebar-pane equipment-pane";
     equipmentPane.innerHTML = `
-      <header class="sidebar-pane-header">
-        <h3>Equipment</h3>
-      </header>
-      <form class="sidebar-search-label sidebar-search-form" data-role="equipment-filter-form">
-        <span>Filter</span>
-        <div class="sidebar-search-controls">
-          <input type="search" placeholder="Search equipment" value="${sidebarState.equipmentFilterDraft}" />
-          <button type="submit" class="secondary-button">Apply</button>
-        </div>
-      </form>
-      <div class="sidebar-scroll equipment-tree"></div>
-    `;
+    <header class="sidebar-pane-header">
+      <h3>Equipment</h3>
+    </header>
+    <form class="sidebar-search-label sidebar-search-form" data-role="equipment-filter-form">
+      <span>Filter</span>
+      <div class="sidebar-search-controls">
+        <input type="search" placeholder="Search equipment" value="${sidebarState.equipmentFilterDraft}" />
+        <button type="submit" class="secondary-button">Apply</button>
+      </div>
+    </form>
+    <div class="sidebar-scroll equipment-tree"></div>
+  `;
     const equipmentFilterForm = equipmentPane.querySelector('[data-role="equipment-filter-form"]');
     const equipmentFilterInput = equipmentPane.querySelector('input[type="search"]');
     equipmentFilterInput.addEventListener("input", (event) => {
@@ -1989,31 +1989,31 @@ function renderSidebars(snapshot) {
       sensorPane.className = "sidebar-pane sensor-pane";
       const selectedNode = sidebarState.nodeById.get(sidebarState.selectedEquipmentId);
       sensorPane.innerHTML = `
-        <header class="sidebar-pane-header">
-          <h3>Details</h3>
-          <p title="${selectedNode?.name || ""}">${selectedNode?.name || ""}</p>
-        </header>
-        <div class="detail-tab-strip" role="tablist" aria-label="Equipment details">
-          <button
-            type="button"
-            role="tab"
-            class="detail-tab${sidebarState.activeDetailTab === "sensors" ? " active" : ""}"
-            aria-selected="${sidebarState.activeDetailTab === "sensors" ? "true" : "false"}"
-            data-tab="sensors"
-          >
-            Sensors
-          </button>
-          <button
-            type="button"
-            role="tab"
-            class="detail-tab${sidebarState.activeDetailTab === "events" ? " active" : ""}"
-            aria-selected="${sidebarState.activeDetailTab === "events" ? "true" : "false"}"
-            data-tab="events"
-          >
-            Events
-          </button>
-        </div>
-        <div class="sidebar-scroll sensor-groups"></div>
+      <header class="sidebar-pane-header">
+        <h3>Details</h3>
+        <p title="${selectedNode?.name || ""}">${selectedNode?.name || ""}</p>
+      </header>
+      <div class="detail-tab-strip" role="tablist" aria-label="Equipment details">
+        <button
+          type="button"
+          role="tab"
+          class="detail-tab${sidebarState.activeDetailTab === "sensors" ? " active" : ""}"
+          aria-selected="${sidebarState.activeDetailTab === "sensors" ? "true" : "false"}"
+          data-tab="sensors"
+        >
+          Sensors
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="detail-tab${sidebarState.activeDetailTab === "events" ? " active" : ""}"
+          aria-selected="${sidebarState.activeDetailTab === "events" ? "true" : "false"}"
+          data-tab="events"
+        >
+          Events
+        </button>
+      </div>
+      <div class="sidebar-scroll sensor-groups"></div>
       `;
       const tabButtons = Array.from(sensorPane.querySelectorAll(".detail-tab"));
       tabButtons.forEach((button) => {

@@ -10,9 +10,9 @@
       href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Work+Sans:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles/tokens.css?v=20260416-2" />
-    <link rel="stylesheet" href="./styles/charts-page.css?v=20260419-1" />
-    <link rel="stylesheet" href="./styles/components.css?v=20260416-2" />
+    <link rel="stylesheet" href="./styles/tokens.css?v=20260519-1" />
+    <link rel="stylesheet" href="./styles/charts-page.css?v=20260519-1" />
+    <link rel="stylesheet" href="./styles/components.css?v=20260519-1" />
   </head>
   <body>
     <main class="charts-page-container" id="charts-page-root">
@@ -35,34 +35,11 @@
             Start with preset pages, then build custom compositions for each analysis workflow.
           </p>
         </div>
-        <div class="charts-meta">
-          <p class="meta-label">Environment</p>
-          <p class="meta-value" id="env-label">Local Prototype</p>
-          <p class="meta-label">Tab</p>
-          <p class="meta-value">Charts</p>
-          <p class="meta-label">Backend Contract</p>
-          <p class="meta-value">FastAPI /api/v1/charts</p>
-        </div>
       </header>
 
       <aside id="charts-sidebars" class="charts-sidebars" aria-label="Equipment and sensors"></aside>
       <section class="charts-workspace-layout" aria-label="Charts workspace">
         <div class="charts-workspace-main">
-          <section class="charts-kpi-strip" aria-label="Workspace context">
-            <div class="control-group">
-              <span class="control-label">Page Mode</span>
-              <strong>Preset + Custom</strong>
-            </div>
-            <div class="control-group">
-              <span class="control-label">Chart Engine</span>
-              <strong>D3.js</strong>
-            </div>
-            <div class="control-group">
-              <span class="control-label">Data Source</span>
-              <strong>Workspace ProfilingV1</strong>
-            </div>
-          </section>
-
           <section class="charts-surface" aria-label="Charts content shell">
             <div class="surface-top-row">
               <div class="tab-navigation" id="tab-navigation" aria-label="Page navigation"></div>
@@ -104,7 +81,7 @@
       };
     </script>
     <script type="module">
-      import("./app.js?v=20260504-1").catch((error) => {
+      import("./app.js?v=20260519-1").catch((error) => {
         console.error("Charts app bootstrap failed", error);
         const target = document.getElementById("chart-grid");
         if (target) {

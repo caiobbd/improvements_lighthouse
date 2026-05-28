@@ -17,13 +17,14 @@ This roadmap evolves the Lighthouse reference experience and adds operational ca
 - [x] **Phase 3: Workspace Simplification and Interaction Polish** - Reduce clutter and improve page/chart lifecycle ergonomics. (completed 2026-04-13)
 - [x] **Phase 4: Dual-Sidebar Equipment and Sensor Plotting** - Add equipment-tree navigation and direct sensor-to-chart interactions. (completed 2026-04-16)
 - [x] **Phase 5: Performance and Speed Optimization** - Improve startup/refresh performance, frequency control, and batching. (completed 2026-04-19)
-- [ ] **Phase 6: Intel Events Integration** - Integrate Shape Intel events into sidebar workflows and alarm-specific pages.
-- [ ] **Phase 6.1: Alarm Row Parity (INSERTED)** - Align alarm-row layout and markdown payload rendering for operator readability.
-- [ ] **Phase 6.2: Advanced Chart Interaction QoL (INSERTED)** - Add precision zoom/pan and multi-trace analysis controls.
-- [ ] **Phase 6.2.1: Scroll Stability and Non-Destructive Loading (INSERTED)** - Preserve sidebar/chart continuity through heavy interaction flows.
+- [x] **Phase 6: Intel Events Integration** - Integrate Shape Intel events into sidebar workflows and alarm-specific pages. (completed 2026-04-19)
+- [x] **Phase 6.1: Alarm Row Parity (INSERTED)** - Align alarm-row layout and markdown payload rendering for operator readability. (completed 2026-04-19)
+- [x] **Phase 6.2: Advanced Chart Interaction QoL (INSERTED)** - Add precision zoom/pan and multi-trace analysis controls. (completed 2026-04-19)
+- [x] **Phase 6.2.1: Scroll Stability and Non-Destructive Loading (INSERTED)** - Preserve sidebar/chart continuity through heavy interaction flows. (completed 2026-04-19)
 - [x] **Phase 7: Timeseries Incremental Loading and Persistence** - Keep existing chart data visible while incrementally fetching missing data. (completed 2026-04-20)
-- [ ] **Phase 8: Cross-Chart Hover and Pinned Cursors** - Deliver synchronized hover/pinned timestamp comparison across charts.
-- [ ] **Phase 8.1: Improving context from attributes (INSERTED)** - Enrich chart sensor context, threshold controls, and custom alarm metadata workflows.
+- [x] **Phase 8: Cross-Chart Hover and Pinned Cursors** - Deliver synchronized hover/pinned timestamp comparison across charts. (completed 2026-05-28)
+- [x] **Phase 8.1: Improving context from attributes (INSERTED)** - Enrich chart sensor context, threshold controls, and custom alarm metadata workflows. (completed 2026-05-04)
+- [ ] **Phase 9: Scalable Frontend Navigation and UX Architecture** - Establish scalable application navigation and UX structure for multi-page expansion without regressing Charts workflows.
 
 ## Phase Details
 
@@ -73,25 +74,25 @@ This roadmap evolves the Lighthouse reference experience and adds operational ca
 **Goal**: Add event-alarm workflows so operators can move from event cards to alarm pages with contextual charts.  
 **Depends on**: Phase 5  
 **Requirements**: CHT-38, CHT-39, CHT-40, CHT-41, CHT-42, CHT-43, CHT-44, CHT-45  
-**Status**: Pending
+**Status**: Completed
 
 ### Phase 6.1: Alarm Row Parity (INSERTED)
 **Goal**: Render alarm payload text and metadata in a readable, safe, and Lighthouse-consistent alarm row.  
 **Depends on**: Phase 6  
 **Requirements**: CHT-46, CHT-47, CHT-48, CHT-49, CHT-50, CHT-51  
-**Status**: Pending
+**Status**: Completed
 
 ### Phase 6.2: Advanced Chart Interaction QoL (INSERTED)
 **Goal**: Deliver precision interaction tools for anomaly analysis without breaking current chart workflows.  
 **Depends on**: Phase 6.1  
 **Requirements**: CHT-52, CHT-53, CHT-54, CHT-55, CHT-56, CHT-57, CHT-58, CHT-59, CHT-60, CHT-61, CHT-62, CHT-63  
-**Status**: Pending
+**Status**: Completed
 
 ### Phase 6.2.1: Scroll Stability and Non-Destructive Loading (INSERTED)
 **Goal**: Preserve scroll position and chart continuity through interactive operations and background fetches.  
 **Depends on**: Phase 6.2  
 **Requirements**: CHT-64, CHT-65, CHT-66, CHT-67  
-**Status**: Pending
+**Status**: Completed
 
 ### Phase 7: Timeseries Incremental Loading and Persistence
 **Goal**: Keep existing series visible while incrementally loading new/frequency-shifted data.  
@@ -103,13 +104,25 @@ This roadmap evolves the Lighthouse reference experience and adds operational ca
 **Goal**: Support synchronized timestamp comparison across visible charts using hover and pinned cursors.  
 **Depends on**: Phase 7  
 **Requirements**: CHT-74, CHT-75, CHT-76, CHT-77, CHT-78, CHT-79, CHT-80, CHT-81, CHT-82, CHT-83  
-**Status**: Pending
+**Status**: Completed
 
-### Phase 08.1: Improving context from attributes (INSERTED)
+### Phase 8.1: Improving context from attributes (INSERTED)
 **Goal**: Deliver enriched chart sensor context tables, threshold toggles/overlays, and custom alarm metadata persistence without regressing existing chart workflows.  
 **Depends on**: Phase 8  
 **Requirements**: CHT-84, CHT-85, CHT-86, CHT-87, CHT-88, CHT-89, CHT-90, CHT-91, CHT-92, CHT-93, CHT-94, CHT-95  
+**Status**: Completed
+
+### Phase 9: Scalable Frontend Navigation and UX Architecture
+
+**Goal:** Reframe Charts as part of a scalable product shell with global navigation, compact operational controls, and extensible side-panel architecture.  
+**Depends on:** Phase 8.1  
+**Requirements**: TBD  
 **Status**: Pending
 
+Plans:
+- [ ] 09-01 Product Shell Layout and Dual-Left Navigation Foundation
+- [ ] 09-02 Browser-Like Tabs and Top-Right Control Model
+- [ ] 09-03 System Info, Chart-Control Iconification, and Plot-Space Optimization
+
 ---
-*Last updated: 2026-04-29 after Phase 8.1 planning normalization*
+*Last updated: 2026-05-28 after cross-phase verification/debt closure sync*
