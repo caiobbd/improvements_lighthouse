@@ -85,32 +85,32 @@ const UNIT_CONVERSION_FACTORS = Object.freeze({
 const UNIT_ALIASES_RAW = Object.freeze({
   um: Object.freeze([
     "um",
-    "µm",
-    "μm",
+    "Âµm",
+    "Î¼m",
     "micron",
     "microns",
     "micrometer",
     "micrometers",
     "um pp",
     "um-pp",
-    "µm pp",
-    "µm-pp",
-    "μm pp",
-    "μm-pp",
+    "Âµm pp",
+    "Âµm-pp",
+    "Î¼m pp",
+    "Î¼m-pp",
   ]),
   mil: Object.freeze(["mil", "mils", "mil pp", "mils pp"]),
   mm: Object.freeze(["mm"]),
   "mm/s": Object.freeze(["mm/s", "mm/s rms", "mmps", "mm sec", "mm/sec", "mms"]),
   "in/s": Object.freeze(["in/s", "ips", "in/s rms", "inch/s", "inch/sec", "in/sec", "inches/s", "inches/sec"]),
   g: Object.freeze(["g", "ge", "g rms", "grms"]),
-  "m/s2": Object.freeze(["m/s2", "m/s^2", "m/s²", "m/s2 rms", "m/s² rms", "mps2", "m/sec2"]),
-  c: Object.freeze(["c", "°c", "degc", "deg c", "deg. c", "deg.c", "celsius"]),
-  f: Object.freeze(["f", "°f", "degf", "deg f", "deg. f", "deg.f", "fahrenheit"]),
+  "m/s2": Object.freeze(["m/s2", "m/s^2", "m/sÂ²", "m/s2 rms", "m/sÂ² rms", "mps2", "m/sec2"]),
+  c: Object.freeze(["c", "Â°c", "degc", "deg c", "deg. c", "deg.c", "celsius"]),
+  f: Object.freeze(["f", "Â°f", "degf", "deg f", "deg. f", "deg.f", "fahrenheit"]),
   kpa: Object.freeze(["kpa", "kpaa"]),
   kpag: Object.freeze(["kpag", "kpa(g)", "kpa g"]),
   bar: Object.freeze(["bar", "barg", "bar(g)", "bar g"]),
   psi: Object.freeze(["psi", "psig", "psia", "psid", "psi(g)", "psi g"]),
-  "kgf/cm2": Object.freeze(["kgf/cm2", "kg/cm2", "kg/cm²", "kgf/cm^2", "kg/cm^2", "kgfcm2"]),
+  "kgf/cm2": Object.freeze(["kgf/cm2", "kg/cm2", "kg/cmÂ²", "kgf/cm^2", "kg/cm^2", "kgfcm2"]),
   inwc: Object.freeze(["inwc", "inwg", "inh2o", "in h2o", "inchh2o", "inchesh2o", "inches water column"]),
   mmh2o: Object.freeze(["mmh2o", "mm h2o", "mmwc", "mm water column"]),
 });
@@ -183,14 +183,14 @@ function normalizeUnitToken(unit) {
     ["\u00b0", ""],
     ["\u00b2", "2"],
     ["\u00b3", "3"],
-    ["âµ", "u"],
-    ["â°", ""],
-    ["â²", "2"],
-    ["â³", "3"],
-    ["Âµ", "u"],
-    ["Â°", ""],
-    ["Â²", "2"],
-    ["Â³", "3"],
+    ["Ã¢Âµ", "u"],
+    ["Ã¢Â°", ""],
+    ["Ã¢Â²", "2"],
+    ["Ã¢Â³", "3"],
+    ["Ã‚Âµ", "u"],
+    ["Ã‚Â°", ""],
+    ["Ã‚Â²", "2"],
+    ["Ã‚Â³", "3"],
   ];
   replacements.forEach(([source, target]) => {
     text = text.split(source).join(target);
@@ -318,17 +318,22 @@ function resolveThresholdValueForSensorUnit(threshold, targetUnit) {
 function resolveDateParams(page) {
   const end = new Date();
   let start = new Date(end);
+  const preset = String(page?.datePreset || "").toLowerCase();
 
-  if (page.datePreset === "custom" && page.startDate && page.endDate) {
+  if (preset === "custom" && page.startDate && page.endDate) {
     return { start_date: page.startDate, end_date: page.endDate };
   }
 
-  if (page.datePreset === "7d") {
+  if (preset === "24h") {
+    start.setHours(end.getHours() - 24);
+  } else if (preset === "1w" || preset === "7d") {
     start.setDate(end.getDate() - 7);
-  } else if (page.datePreset === "90d") {
+  } else if (preset === "4w" || preset === "30d") {
+    start.setDate(end.getDate() - 28);
+  } else if (preset === "90d") {
     start.setDate(end.getDate() - 90);
   } else {
-    start.setDate(end.getDate() - 30);
+    start.setDate(end.getDate() - 28);
   }
 
   return {
@@ -886,7 +891,7 @@ export function createChartCard({
   const editTitle = document.createElement("button");
   editTitle.type = "button";
   editTitle.className = "chart-title-edit icon-button";
-  editTitle.textContent = "Edit";
+  editTitle.textContent = "\u270E";
   editTitle.title = "Rename chart";
   editTitle.setAttribute("aria-label", "Rename chart");
 
@@ -897,8 +902,10 @@ export function createChartCard({
 
   const refresh = document.createElement("button");
   refresh.type = "button";
-  refresh.className = "icon-button";
-  refresh.textContent = "Refresh";
+  refresh.className = "icon-button chart-header-icon-button chart-refresh-button";
+  refresh.textContent = "\u21BB";
+  refresh.title = "Refresh chart";
+  refresh.setAttribute("aria-label", "Refresh chart");
   refresh.dataset.role = "chart-refresh";
 
   const helpWrap = document.createElement("div");
@@ -906,7 +913,7 @@ export function createChartCard({
 
   const helpButton = document.createElement("button");
   helpButton.type = "button";
-  helpButton.className = "icon-button chart-help-button";
+  helpButton.className = "icon-button chart-header-icon-button chart-help-button";
   helpButton.textContent = "?";
   helpButton.title = "Chart interaction shortcuts";
   helpButton.setAttribute("aria-label", "Chart interaction shortcuts");
@@ -931,10 +938,18 @@ export function createChartCard({
 
   const menuButton = document.createElement("button");
   menuButton.type = "button";
-  menuButton.className = "icon-button";
-  menuButton.textContent = "Actions";
+  menuButton.className = "icon-button chart-header-icon-button chart-menu-button";
+  menuButton.textContent = "...";
+  menuButton.title = "Chart actions";
+  menuButton.setAttribute("aria-label", "Chart actions");
+  menuButton.setAttribute("aria-haspopup", "menu");
+  menuButton.setAttribute("aria-expanded", "false");
 
-  actionGroup.append(refresh, helpWrap, menuButton);
+  const menuWrap = document.createElement("div");
+  menuWrap.className = "chart-menu";
+  menuWrap.append(menuButton);
+
+  actionGroup.append(helpWrap, refresh, menuWrap);
   header.append(titleGroup, actionGroup);
 
   const body = document.createElement("div");
@@ -2020,7 +2035,9 @@ export function createChartCard({
       loadState = "loading";
     }
     refresh.disabled = loading;
-    refresh.textContent = loading ? "Refreshing..." : "Refresh";
+    refresh.classList.toggle("is-loading", loading);
+    refresh.setAttribute("aria-busy", loading ? "true" : "false");
+    refresh.title = loading ? "Refreshing chart..." : "Refresh chart";
     card.classList.toggle("is-loading", loading);
     if (loading && currentSeries.length === 0) {
       drawChart();
@@ -2116,11 +2133,11 @@ export function createChartCard({
       },
     ];
 
-    const previous = actionGroup.querySelector(".chart-action-menu");
+    const previous = menuWrap.querySelector(".chart-action-menu");
     if (previous) {
       previous.remove();
     }
-    actionGroup.append(buildActionMenu(entries));
+    menuWrap.append(buildActionMenu(entries));
   }
 
   async function load(options = {}) {
@@ -2287,6 +2304,7 @@ export function createChartCard({
 
   let actionMenuCloseTimer = null;
   const ACTION_MENU_CLOSE_DELAY_MS = 180;
+  let helpTooltipViewportListener = null;
 
   function clearActionMenuCloseTimer() {
     if (actionMenuCloseTimer) {
@@ -2295,34 +2313,141 @@ export function createChartCard({
     }
   }
 
-  function openActionMenu() {
+  function closeHelpTooltip() {
+    helpWrap.classList.remove("open");
+    helpButton.setAttribute("aria-expanded", "false");
+    helpTooltip.style.left = "";
+    helpTooltip.style.right = "";
+    helpTooltip.style.top = "";
+  }
+
+  function positionHelpTooltip() {
+    const margin = 8;
+    helpTooltip.style.left = "0px";
+    helpTooltip.style.right = "auto";
+    helpTooltip.style.top = "0px";
+    const tooltipRect = helpTooltip.getBoundingClientRect();
+    if (!tooltipRect.width || !tooltipRect.height) return;
+    const anchorRect = helpButton.getBoundingClientRect();
+    const viewportWidth = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+    const viewportHeight = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+    const preferredLeft = anchorRect.left;
+    const maxLeft = Math.max(margin, viewportWidth - tooltipRect.width - margin);
+    const clampedLeft = Math.max(margin, Math.min(preferredLeft, maxLeft));
+    const belowTop = anchorRect.bottom + 6;
+    const aboveTop = anchorRect.top - tooltipRect.height - 6;
+    const preferredTop =
+      belowTop + tooltipRect.height <= viewportHeight - margin || aboveTop < margin
+        ? Math.min(belowTop, viewportHeight - tooltipRect.height - margin)
+        : aboveTop;
+    helpTooltip.style.left = `${Math.round(clampedLeft)}px`;
+    helpTooltip.style.top = `${Math.round(Math.max(margin, preferredTop))}px`;
+  }
+
+  function openHelpTooltip() {
+    closeActionMenu();
+    helpWrap.classList.add("open");
+    helpButton.setAttribute("aria-expanded", "true");
+    if (!helpTooltipViewportListener) {
+      helpTooltipViewportListener = () => {
+        if (!helpWrap.classList.contains("open")) return;
+        positionHelpTooltip();
+      };
+      window.addEventListener("resize", helpTooltipViewportListener);
+      window.addEventListener("scroll", helpTooltipViewportListener, true);
+    }
+    positionHelpTooltip();
+    requestAnimationFrame(positionHelpTooltip);
+  }
+
+  function closeActionMenu() {
+    menuWrap.classList.remove("is-menu-open");
+    menuButton.setAttribute("aria-expanded", "false");
     clearActionMenuCloseTimer();
-    actionGroup.classList.add("is-menu-open");
+  }
+
+  function openActionMenu() {
+    closeHelpTooltip();
+    clearActionMenuCloseTimer();
+    menuWrap.classList.add("is-menu-open");
+    menuButton.setAttribute("aria-expanded", "true");
+  }
+
+  function closeAllHeaderOverlays() {
+    closeActionMenu();
+    closeHelpTooltip();
   }
 
   function scheduleActionMenuClose() {
     clearActionMenuCloseTimer();
     actionMenuCloseTimer = window.setTimeout(() => {
-      actionGroup.classList.remove("is-menu-open");
-      actionMenuCloseTimer = null;
+      closeActionMenu();
     }, ACTION_MENU_CLOSE_DELAY_MS);
   }
 
-  actionGroup.addEventListener("mouseenter", openActionMenu);
-  actionGroup.addEventListener("mouseleave", scheduleActionMenuClose);
-  actionGroup.addEventListener("focusin", openActionMenu);
-  actionGroup.addEventListener("focusout", scheduleActionMenuClose);
-  actionGroup.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      actionGroup.classList.remove("is-menu-open");
-      clearActionMenuCloseTimer();
+  function closeOverlaysOnOutsidePointer(event) {
+    const target = event?.target;
+    if (!target) return;
+    if (!helpWrap.contains(target)) {
+      closeHelpTooltip();
     }
+    if (!menuWrap.contains(target)) {
+      closeActionMenu();
+    }
+  }
+
+  function closeOverlaysOnEscape(event, focusTarget = null) {
+    if (event.key !== "Escape") return false;
+    event.preventDefault();
+    closeAllHeaderOverlays();
+    if (focusTarget && typeof focusTarget.focus === "function") {
+      focusTarget.focus();
+    }
+    return true;
+  }
+
+  document.addEventListener("pointerdown", closeOverlaysOnOutsidePointer);
+
+  menuButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    if (menuWrap.classList.contains("is-menu-open")) {
+      closeActionMenu();
+      return;
+    }
+    openActionMenu();
+  });
+  menuButton.addEventListener("mouseenter", () => openActionMenu());
+  menuButton.addEventListener("focus", () => openActionMenu());
+  menuWrap.addEventListener("mouseenter", () => openActionMenu());
+  menuWrap.addEventListener("mouseleave", () => scheduleActionMenuClose());
+  menuWrap.addEventListener("focusout", (event) => {
+    if (menuWrap.contains(event.relatedTarget)) return;
+    closeActionMenu();
+  });
+  menuWrap.addEventListener("keydown", (event) => {
+    closeOverlaysOnEscape(event, menuButton);
   });
 
-  helpWrap.addEventListener("mouseenter", () => helpWrap.classList.add("open"));
-  helpWrap.addEventListener("mouseleave", () => helpWrap.classList.remove("open"));
-  helpWrap.addEventListener("focusin", () => helpWrap.classList.add("open"));
-  helpWrap.addEventListener("focusout", () => helpWrap.classList.remove("open"));
+  helpButton.setAttribute("aria-expanded", "false");
+  helpButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    if (helpWrap.classList.contains("open")) {
+      closeHelpTooltip();
+      return;
+    }
+    openHelpTooltip();
+  });
+  helpWrap.addEventListener("mouseenter", () => openHelpTooltip());
+  helpWrap.addEventListener("mouseleave", () => closeHelpTooltip());
+  helpButton.addEventListener("focus", () => openHelpTooltip());
+  helpWrap.addEventListener("focusout", (event) => {
+    if (helpWrap.contains(event.relatedTarget)) return;
+    closeHelpTooltip();
+  });
+  helpButton.addEventListener("blur", () => closeHelpTooltip());
+  helpButton.addEventListener("keydown", (event) => {
+    closeOverlaysOnEscape(event, helpButton);
+  });
 
   refresh.addEventListener("click", () => {
     void load({ forceRefresh: true });
@@ -2358,6 +2483,7 @@ export function createChartCard({
 
   card.__chartCardApi = {
     update(nextChart, nextPage, nextTableColumns = null) {
+      closeAllHeaderOverlays();
       const nextDataSignature = buildChartDataSignature(nextChart, nextPage);
       const nextRenderSignature = buildChartRenderSignature(nextChart, nextPage);
       const nextTableColumnsSignature = buildTableColumnsSignature(nextTableColumns);
@@ -2398,6 +2524,12 @@ export function createChartCard({
       scheduleChartResize(true);
     },
     destroy() {
+      document.removeEventListener("pointerdown", closeOverlaysOnOutsidePointer);
+      if (helpTooltipViewportListener) {
+        window.removeEventListener("resize", helpTooltipViewportListener);
+        window.removeEventListener("scroll", helpTooltipViewportListener, true);
+        helpTooltipViewportListener = null;
+      }
       unregisterSync();
       resizeObserver?.disconnect?.();
       resizeObserver = null;

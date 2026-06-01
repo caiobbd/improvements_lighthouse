@@ -541,10 +541,10 @@
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: var(--surface-3);
-  padding: 6px;
+  padding: 5px;
   display: grid;
   grid-template-rows: auto minmax(320px, 1fr) auto;
-  gap: 6px;
+  gap: 5px;
   min-height: 404px;
   height: auto;
   min-width: 0;
@@ -553,7 +553,7 @@
 .chart-card-header {
   display: flex;
   justify-content: space-between;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   min-width: 0;
 }
@@ -629,7 +629,7 @@
   gap: 6px;
   border: 1px solid var(--border-soft);
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 3px 8px;
   font-size: 11px;
   background: var(--surface-2);
 }
@@ -704,8 +704,8 @@
 }
 
 .chart-card-footer {
-  min-height: 78px;
-  max-height: 196px;
+  min-height: 72px;
+  max-height: 188px;
   overflow: hidden;
 }
 
@@ -755,7 +755,7 @@
 
 .sensor-context-table th,
 .sensor-context-table td {
-  padding: 5px 7px;
+  padding: 4px 6px;
   border-bottom: 1px solid var(--border-soft);
   color: var(--ink-1);
   font-size: 11px;
@@ -1205,7 +1205,7 @@
 
 .chart-actions {
   display: inline-flex;
-  gap: 1px;
+  gap: 2px;
   flex-shrink: 0;
   align-items: center;
   max-width: 100%;
@@ -1222,16 +1222,22 @@
 }
 
 .chart-header-icon-button {
-  width: 26px;
-  min-width: 26px;
-  height: 26px;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 5px;
   background: transparent;
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
+}
+
+.chart-menu-button {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -1px;
 }
 
 .chart-header-icon-button:hover,
@@ -1266,8 +1272,8 @@
   top: 0;
   left: 0;
   z-index: 280;
-  min-width: 220px;
-  max-width: 260px;
+  min-width: 210px;
+  max-width: 248px;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   background: rgba(24, 29, 34, 0.96);
@@ -1318,7 +1324,7 @@
 
 .chart-action-menu {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 5px);
   right: 0;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);

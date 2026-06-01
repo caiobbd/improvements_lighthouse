@@ -3,14 +3,14 @@
   --charts-sidebar-collapsed-width: 56px;
   min-height: 100vh;
   width: 100%;
-  padding: var(--space-5);
+  padding: var(--space-4);
   display: grid;
   grid-template-columns: var(--charts-sidebar-width) minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   grid-template-areas:
     "app-header app-header"
     "sidebars workspace";
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .charts-page-container.sidebar-collapsed {
@@ -29,7 +29,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: 10px 14px;
+  padding: 9px 12px;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   background: linear-gradient(180deg, var(--surface-2), var(--surface-3));
@@ -130,7 +130,7 @@
 
 .surface-top-row,
 .surface-control-row {
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border-soft);
   display: flex;
   align-items: center;
@@ -160,7 +160,7 @@
 }
 
 .alarm-details-row {
-  padding: 8px 14px;
+  padding: 7px 12px;
   border-bottom: 1px solid var(--border-soft);
   background: rgba(255, 255, 255, 0.42);
 }
@@ -400,14 +400,14 @@
 }
 
 .surface-body {
-  padding: 12px 14px;
+  padding: 10px 12px;
   min-width: 0;
 }
 
 .chart-grid {
   display: grid;
   width: 100%;
-  gap: var(--space-3);
+  gap: var(--space-2);
   align-items: start;
   align-content: start;
   grid-auto-rows: auto;
