@@ -18,6 +18,16 @@ import { renderSafeMarkdown } from "./utils/safe-markdown.js";
 
 const ROOT_PARENT_KEY = "__root__";
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "lighthouse.charts.sidebars.collapsed.v1";
+const SIDEBAR_WIDTH_STORAGE_KEY = "lighthouse.charts.sidebars.width.v1";
+const SIDEBAR_ACTIVE_CONTEXT_STORAGE_KEY = "lighthouse.charts.sidebars.activeContext.v1";
+const SIDEBAR_MIN_WIDTH_PX = 320;
+const SIDEBAR_MAX_WIDTH_PX = 440;
+const SIDEBAR_DEFAULT_WIDTH_PX = 360;
+const SIDEBAR_COLLAPSED_WIDTH_PX = 56;
+const SIDEBAR_AUTO_COLLAPSE_BREAKPOINT_PX = 1400;
+const SIDEBAR_CONTEXT_EQUIPMENT = "equipment";
+const SIDEBAR_CONTEXT_SENSORS = "sensors";
+const SIDEBAR_CONTEXT_EVENTS = "events";
 const SENSOR_DRAG_MIME = "application/x-lighthouse-sensor-tag";
 const GLOBAL_SENSOR_DRAG_KEY = "__lighthouseDraggedSensorTag";
 const ALARM_NARRATIVE_COLLAPSE_THRESHOLD = 900;
@@ -30,10 +40,37 @@ const refreshProgressRoot = document.getElementById("refresh-progress");
 const alarmDetailsRowRoot = document.getElementById("alarm-details-row");
 const chartGridRoot = document.getElementById("chart-grid");
 const sidebarsRoot = document.getElementById("charts-sidebars");
+const chartsPageRoot = document.getElementById("charts-page-root");
 const refreshRequestsInFlight = new Set();
 
+function clampSidebarWidth(rawWidth) {
+  const numericWidth = Number(rawWidth);
+  if (!Number.isFinite(numericWidth)) {
+    return SIDEBAR_DEFAULT_WIDTH_PX;
+  }
+  return Math.min(SIDEBAR_MAX_WIDTH_PX, Math.max(SIDEBAR_MIN_WIDTH_PX, Math.round(numericWidth)));
+}
+
+function normalizeSidebarContext(nextContext) {
+  if (nextContext === SIDEBAR_CONTEXT_SENSORS) return SIDEBAR_CONTEXT_SENSORS;
+  if (nextContext === SIDEBAR_CONTEXT_EVENTS) return SIDEBAR_CONTEXT_EVENTS;
+  return SIDEBAR_CONTEXT_EQUIPMENT;
+}
+
+const initialSidebarWidth = clampSidebarWidth(
+  window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY),
+);
+const initialSidebarContext = normalizeSidebarContext(
+  window.localStorage.getItem(SIDEBAR_ACTIVE_CONTEXT_STORAGE_KEY),
+);
+const initialSidebarCollapsed = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1";
+
 const sidebarState = {
-  collapsed: window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1",
+  userCollapsed: initialSidebarCollapsed,
+  collapsed: initialSidebarCollapsed,
+  effectiveCollapseReason: "remembered",
+  widthPx: initialSidebarWidth,
+  activeContext: initialSidebarContext,
   loadingEquipment: false,
   equipmentError: "",
   equipmentNodes: [],
@@ -50,7 +87,6 @@ const sidebarState = {
   sensorList: [],
   unitMetadataReadyByEquipmentId: new Map(),
   expandedSensorCategories: new Set(),
-  activeDetailTab: "sensors",
   loadingEvents: false,
   eventsError: "",
   eventsList: [],
@@ -702,6 +738,118 @@ function setSidebarNotice(message) {
   invalidateSidebarRender();
 }
 
+function isViewportAutoCollapsed() {
+  return window.innerWidth < SIDEBAR_AUTO_COLLAPSE_BREAKPOINT_PX;
+}
+
+function isDocumentFullscreen() {
+  return Boolean(document.fullscreenElement);
+}
+
+function getEffectiveSidebarState() {
+  if (isDocumentFullscreen()) {
+    return { collapsed: false, reason: "fullscreen-force-open" };
+  }
+  if (isViewportAutoCollapsed()) {
+    return { collapsed: true, reason: "responsive-auto-collapse" };
+  }
+  return { collapsed: sidebarState.userCollapsed, reason: "remembered" };
+}
+
+function syncSidebarLayoutContract() {
+  if (!chartsPageRoot) return;
+  chartsPageRoot.style.setProperty("--charts-sidebar-width", `${sidebarState.widthPx}px`);
+  chartsPageRoot.style.setProperty(
+    "--charts-sidebar-collapsed-width",
+    `${SIDEBAR_COLLAPSED_WIDTH_PX}px`,
+  );
+  chartsPageRoot.classList.toggle("sidebar-collapsed", sidebarState.collapsed);
+}
+
+function applySidebarCollapsePrecedence({ invalidate = true } = {}) {
+  const nextState = getEffectiveSidebarState();
+  const changed =
+    sidebarState.collapsed !== nextState.collapsed ||
+    sidebarState.effectiveCollapseReason !== nextState.reason;
+  sidebarState.collapsed = nextState.collapsed;
+  sidebarState.effectiveCollapseReason = nextState.reason;
+  syncSidebarLayoutContract();
+  if (changed && invalidate) {
+    invalidateSidebarRender();
+  }
+  return changed;
+}
+
+function setSidebarWidth(nextWidth, { persist = true } = {}) {
+  const normalizedWidth = clampSidebarWidth(nextWidth);
+  if (normalizedWidth === sidebarState.widthPx) return false;
+  sidebarState.widthPx = normalizedWidth;
+  if (persist) {
+    window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(normalizedWidth));
+  }
+  syncSidebarLayoutContract();
+  return true;
+}
+
+function setSidebarCollapsedByUser(nextCollapsed) {
+  sidebarState.userCollapsed = Boolean(nextCollapsed);
+  window.localStorage.setItem(
+    SIDEBAR_COLLAPSED_STORAGE_KEY,
+    sidebarState.userCollapsed ? "1" : "0",
+  );
+  applySidebarCollapsePrecedence();
+}
+
+function setSidebarContext(nextContext, { expandSidebar = false } = {}) {
+  const normalizedContext = normalizeSidebarContext(nextContext);
+  const contextChanged = sidebarState.activeContext !== normalizedContext;
+  if (contextChanged) {
+    sidebarState.activeContext = normalizedContext;
+    window.localStorage.setItem(SIDEBAR_ACTIVE_CONTEXT_STORAGE_KEY, normalizedContext);
+  }
+
+  if (expandSidebar) {
+    setSidebarCollapsedByUser(false);
+    if (sidebarState.effectiveCollapseReason === "responsive-auto-collapse") {
+      setSidebarNotice("Sidebar remains collapsed below 1400px.");
+    }
+  }
+
+  if (contextChanged) {
+    invalidateSidebarRender();
+    if (normalizedContext === SIDEBAR_CONTEXT_EVENTS && sidebarState.selectedEquipmentId) {
+      void loadIntelEventsForSelectedEquipment({ forceReload: true });
+    }
+  }
+}
+
+function startSidebarResize(pointerDownEvent) {
+  if (sidebarState.collapsed) return;
+  if (pointerDownEvent.button !== 0) return;
+  pointerDownEvent.preventDefault();
+
+  const startX = pointerDownEvent.clientX;
+  const initialWidth = sidebarState.widthPx;
+  document.body.classList.add("chart-sidebar-resizing");
+
+  const onPointerMove = (moveEvent) => {
+    const deltaX = moveEvent.clientX - startX;
+    setSidebarWidth(initialWidth + deltaX, { persist: false });
+  };
+
+  const onPointerUp = () => {
+    document.removeEventListener("pointermove", onPointerMove);
+    document.removeEventListener("pointerup", onPointerUp);
+    document.body.classList.remove("chart-sidebar-resizing");
+    window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarState.widthPx));
+    renderState.gridSignature = "";
+    void render(store.getState());
+  };
+
+  document.addEventListener("pointermove", onPointerMove);
+  document.addEventListener("pointerup", onPointerUp);
+}
+
 function buildChildrenByParent(nodes) {
   const childrenByParent = new Map();
   nodes.forEach((node) => {
@@ -993,7 +1141,7 @@ async function selectEquipmentNode(node, options = {}) {
     invalidateSidebarRender();
   }
 
-  if (sidebarState.activeDetailTab === "events") {
+  if (sidebarState.activeContext === SIDEBAR_CONTEXT_EVENTS) {
     await loadIntelEventsForSelectedEquipment({ forceReload: true });
   }
 }
@@ -1023,9 +1171,11 @@ function addChartsWithCap(chartEntries) {
 }
 
 function toggleSidebarCollapse() {
-  sidebarState.collapsed = !sidebarState.collapsed;
-  window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, sidebarState.collapsed ? "1" : "0");
-  invalidateSidebarRender();
+  const nextUserCollapsed = !sidebarState.userCollapsed;
+  setSidebarCollapsedByUser(nextUserCollapsed);
+  if (!nextUserCollapsed && sidebarState.effectiveCollapseReason === "responsive-auto-collapse") {
+    setSidebarNotice("Sidebar remains collapsed below 1400px.");
+  }
 }
 
 function appendTagToChart({ pageId, chartId, sensorTag }) {
@@ -1729,16 +1879,6 @@ function renderEventsSidebar(target) {
   target.append(list);
 }
 
-function setDetailSidebarTab(nextTab) {
-  const normalized = nextTab === "events" ? "events" : "sensors";
-  if (sidebarState.activeDetailTab === normalized) return;
-  sidebarState.activeDetailTab = normalized;
-  invalidateSidebarRender();
-  if (normalized === "events" && sidebarState.selectedEquipmentId) {
-    void loadIntelEventsForSelectedEquipment({ forceReload: true });
-  }
-}
-
 function renderAlarmDetailsRow(snapshot) {
   if (!alarmDetailsRowRoot) return;
   const page = snapshot.pages.find((item) => item.id === snapshot.activePageId);
@@ -1910,9 +2050,11 @@ function renderAlarmDetailsRow(snapshot) {
 
 function renderSidebars(snapshot) {
   if (!sidebarsRoot) return;
+  applySidebarCollapsePrecedence({ invalidate: false });
   captureSidebarScrollSnapshot();
   sidebarsRoot.innerHTML = "";
   sidebarsRoot.className = `charts-sidebars${sidebarState.collapsed ? " collapsed" : ""}`;
+  sidebarsRoot.dataset.context = sidebarState.activeContext;
 
   const shell = document.createElement("div");
   shell.className = "charts-sidebars-shell";
@@ -1923,8 +2065,8 @@ function renderSidebars(snapshot) {
   const toggle = document.createElement("button");
   toggle.type = "button";
   toggle.className = "secondary-button";
-  toggle.textContent = sidebarState.collapsed ? "Show" : "Hide";
-  toggle.title = sidebarState.collapsed ? "Show Navigation" : "Hide Navigation";
+  toggle.textContent = sidebarState.collapsed ? "Open" : "Collapse";
+  toggle.title = sidebarState.collapsed ? "Open navigation pane" : "Collapse navigation pane";
   toggle.addEventListener("click", () => {
     toggleSidebarCollapse();
   });
@@ -1939,104 +2081,159 @@ function renderSidebars(snapshot) {
 
   shell.append(toolbar);
 
-  if (!sidebarState.collapsed) {
-    const panes = document.createElement("div");
-    panes.className = "charts-sidebars-panes";
+  const contextOptions = [
+    {
+      id: SIDEBAR_CONTEXT_EQUIPMENT,
+      label: "Equipment",
+      shortLabel: "E",
+    },
+    {
+      id: SIDEBAR_CONTEXT_SENSORS,
+      label: "Sensors",
+      shortLabel: "S",
+    },
+    {
+      id: SIDEBAR_CONTEXT_EVENTS,
+      label: "Events",
+      shortLabel: "Ev",
+    },
+  ];
 
-    const equipmentPane = document.createElement("section");
-    equipmentPane.className = "sidebar-pane equipment-pane";
-    equipmentPane.innerHTML = `
-    <header class="sidebar-pane-header">
-      <h3>Equipment</h3>
-    </header>
-    <form class="sidebar-search-label sidebar-search-form" data-role="equipment-filter-form">
-      <span>Filter</span>
-      <div class="sidebar-search-controls">
-        <input type="search" placeholder="Search equipment" value="${sidebarState.equipmentFilterDraft}" />
-        <button type="submit" class="secondary-button">Apply</button>
-      </div>
-    </form>
-    <div class="sidebar-scroll equipment-tree"></div>
-  `;
-    const equipmentFilterForm = equipmentPane.querySelector('[data-role="equipment-filter-form"]');
-    const equipmentFilterInput = equipmentPane.querySelector('input[type="search"]');
-    equipmentFilterInput.addEventListener("input", (event) => {
-      sidebarState.equipmentFilterDraft = String(event.target.value || "");
+  if (sidebarState.collapsed) {
+    const rail = document.createElement("div");
+    rail.className = "sidebar-collapsed-rail";
+    contextOptions.forEach((option) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `sidebar-rail-button${
+        sidebarState.activeContext === option.id ? " is-active" : ""
+      }`;
+      button.title = option.label;
+      button.setAttribute("aria-label", option.label);
+      button.textContent = option.shortLabel;
+      button.addEventListener("click", () => {
+        setSidebarContext(option.id, { expandSidebar: true });
+      });
+      rail.append(button);
     });
-    equipmentFilterForm.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const nextFilter = sidebarState.equipmentFilterDraft.trim();
-      sidebarState.equipmentFilter = nextFilter;
-      expandEquipmentTreeForFilter(nextFilter);
-      invalidateSidebarRender();
+    shell.append(rail);
+  } else {
+    const tabs = document.createElement("div");
+    tabs.className = "sidebar-context-tabs";
+    tabs.setAttribute("role", "tablist");
+    tabs.setAttribute("aria-label", "Sidebar context");
+    contextOptions.forEach((option) => {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.role = "tab";
+      tab.className = `sidebar-context-tab${sidebarState.activeContext === option.id ? " is-active" : ""}`;
+      tab.setAttribute("aria-selected", sidebarState.activeContext === option.id ? "true" : "false");
+      tab.textContent = option.label;
+      tab.addEventListener("click", () => {
+        setSidebarContext(option.id);
+      });
+      tabs.append(tab);
     });
-    const equipmentTreeHost = equipmentPane.querySelector(".equipment-tree");
-    bindSidebarScrollPersistence(equipmentTreeHost, "equipmentScrollTop");
+    shell.append(tabs);
 
-    if (sidebarState.loadingEquipment) {
-      equipmentTreeHost.innerHTML = '<div class="sidebar-status">Loading equipment tree...</div>';
-    } else if (sidebarState.equipmentError) {
-      equipmentTreeHost.innerHTML = `<div class="sidebar-status is-error">${sidebarState.equipmentError}</div>`;
-    } else {
-      renderEquipmentTreeList(equipmentTreeHost, snapshot);
-    }
-    restoreSidebarScroll(equipmentTreeHost, "equipmentScrollTop");
+    const panelHost = document.createElement("div");
+    panelHost.className = "charts-sidebars-panel-host";
 
-    panes.append(equipmentPane);
-
-    if (sidebarState.selectedEquipmentId) {
-      const sensorPane = document.createElement("section");
-      sensorPane.className = "sidebar-pane sensor-pane";
-      const selectedNode = sidebarState.nodeById.get(sidebarState.selectedEquipmentId);
-      sensorPane.innerHTML = `
+    if (sidebarState.activeContext === SIDEBAR_CONTEXT_EQUIPMENT) {
+      const equipmentPane = document.createElement("section");
+      equipmentPane.className = "sidebar-pane equipment-pane";
+      equipmentPane.innerHTML = `
       <header class="sidebar-pane-header">
-        <h3>Details</h3>
-        <p title="${selectedNode?.name || ""}">${selectedNode?.name || ""}</p>
+        <h3>Equipment</h3>
       </header>
-      <div class="detail-tab-strip" role="tablist" aria-label="Equipment details">
-        <button
-          type="button"
-          role="tab"
-          class="detail-tab${sidebarState.activeDetailTab === "sensors" ? " active" : ""}"
-          aria-selected="${sidebarState.activeDetailTab === "sensors" ? "true" : "false"}"
-          data-tab="sensors"
-        >
-          Sensors
-        </button>
-        <button
-          type="button"
-          role="tab"
-          class="detail-tab${sidebarState.activeDetailTab === "events" ? " active" : ""}"
-          aria-selected="${sidebarState.activeDetailTab === "events" ? "true" : "false"}"
-          data-tab="events"
-        >
-          Events
-        </button>
-      </div>
+      <form class="sidebar-search-label sidebar-search-form" data-role="equipment-filter-form">
+        <span>Filter</span>
+        <div class="sidebar-search-controls">
+          <input type="search" placeholder="Search equipment" value="${sidebarState.equipmentFilterDraft}" />
+          <button type="submit" class="secondary-button">Apply</button>
+        </div>
+      </form>
+      <div class="sidebar-scroll equipment-tree"></div>
+    `;
+      const equipmentFilterForm = equipmentPane.querySelector('[data-role="equipment-filter-form"]');
+      const equipmentFilterInput = equipmentPane.querySelector('input[type="search"]');
+      equipmentFilterInput.addEventListener("input", (event) => {
+        sidebarState.equipmentFilterDraft = String(event.target.value || "");
+      });
+      equipmentFilterForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const nextFilter = sidebarState.equipmentFilterDraft.trim();
+        sidebarState.equipmentFilter = nextFilter;
+        expandEquipmentTreeForFilter(nextFilter);
+        invalidateSidebarRender();
+      });
+      const equipmentTreeHost = equipmentPane.querySelector(".equipment-tree");
+      bindSidebarScrollPersistence(equipmentTreeHost, "equipmentScrollTop");
+
+      if (sidebarState.loadingEquipment) {
+        equipmentTreeHost.innerHTML = '<div class="sidebar-status">Loading equipment tree...</div>';
+      } else if (sidebarState.equipmentError) {
+        equipmentTreeHost.innerHTML = `<div class="sidebar-status is-error">${sidebarState.equipmentError}</div>`;
+      } else {
+        renderEquipmentTreeList(equipmentTreeHost, snapshot);
+      }
+      restoreSidebarScroll(equipmentTreeHost, "equipmentScrollTop");
+      panelHost.append(equipmentPane);
+    } else if (sidebarState.activeContext === SIDEBAR_CONTEXT_SENSORS) {
+      const sensorsPane = document.createElement("section");
+      sensorsPane.className = "sidebar-pane sensor-pane";
+      const selectedNode = sidebarState.selectedEquipmentId
+        ? sidebarState.nodeById.get(sidebarState.selectedEquipmentId)
+        : null;
+      sensorsPane.innerHTML = `
+      <header class="sidebar-pane-header">
+        <h3>Sensors</h3>
+        <p title="${selectedNode?.name || ""}">${
+        selectedNode?.name || "Select equipment in the Equipment context."
+      }</p>
+      </header>
       <div class="sidebar-scroll sensor-groups"></div>
       `;
-      const tabButtons = Array.from(sensorPane.querySelectorAll(".detail-tab"));
-      tabButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-          const nextTab = button.dataset.tab === "events" ? "events" : "sensors";
-          setDetailSidebarTab(nextTab);
-        });
-      });
-      const sensorGroupsHost = sensorPane.querySelector(".sensor-groups");
+      const sensorGroupsHost = sensorsPane.querySelector(".sensor-groups");
       bindSidebarScrollPersistence(sensorGroupsHost, "detailScrollTop");
-      if (sidebarState.activeDetailTab === "events") {
-        renderEventsSidebar(sensorGroupsHost);
-      } else {
-        renderSensorSidebar(sensorGroupsHost, snapshot);
-      }
+      renderSensorSidebar(sensorGroupsHost, snapshot);
       restoreSidebarScroll(sensorGroupsHost, "detailScrollTop");
-      panes.append(sensorPane);
+      panelHost.append(sensorsPane);
+    } else {
+      const eventsPane = document.createElement("section");
+      eventsPane.className = "sidebar-pane sensor-pane";
+      const selectedNode = sidebarState.selectedEquipmentId
+        ? sidebarState.nodeById.get(sidebarState.selectedEquipmentId)
+        : null;
+      eventsPane.innerHTML = `
+      <header class="sidebar-pane-header">
+        <h3>Events</h3>
+        <p title="${selectedNode?.name || ""}">${
+        selectedNode?.name || "Select equipment in the Equipment context."
+      }</p>
+      </header>
+      <div class="sidebar-scroll sensor-groups"></div>
+      `;
+      const eventsHost = eventsPane.querySelector(".sensor-groups");
+      bindSidebarScrollPersistence(eventsHost, "detailScrollTop");
+      renderEventsSidebar(eventsHost);
+      restoreSidebarScroll(eventsHost, "detailScrollTop");
+      panelHost.append(eventsPane);
     }
 
-    shell.append(panes);
+    shell.append(panelHost);
   }
 
   sidebarsRoot.append(shell);
+  if (!sidebarState.collapsed) {
+    const resizeHandle = document.createElement("button");
+    resizeHandle.type = "button";
+    resizeHandle.className = "sidebar-resize-handle";
+    resizeHandle.title = `Resize pane (${SIDEBAR_MIN_WIDTH_PX}px to ${SIDEBAR_MAX_WIDTH_PX}px)`;
+    resizeHandle.setAttribute("aria-label", "Resize navigation pane");
+    resizeHandle.addEventListener("pointerdown", startSidebarResize);
+    sidebarsRoot.append(resizeHandle);
+  }
 }
 
 function buildSidebarSignature(snapshot) {
@@ -2052,7 +2249,11 @@ function buildSidebarSignature(snapshot) {
     .sort()
     .join("|");
   return [
+    sidebarState.userCollapsed ? "1" : "0",
     sidebarState.collapsed ? "1" : "0",
+    sidebarState.effectiveCollapseReason,
+    sidebarState.widthPx,
+    sidebarState.activeContext,
     sidebarState.loadingEquipment ? "1" : "0",
     sidebarState.equipmentError,
     sidebarState.equipmentNodes.length,
@@ -2063,7 +2264,6 @@ function buildSidebarSignature(snapshot) {
     sidebarState.sensorsError,
     categorySignature,
     expandedCategorySignature,
-    sidebarState.activeDetailTab,
     sidebarState.loadingEvents ? "1" : "0",
     sidebarState.eventsError,
     sidebarState.eventsList.length,
@@ -2301,15 +2501,25 @@ function handleBeforeUnload(event) {
   event.returnValue = "";
 }
 
+function handleViewportStateChange() {
+  const collapseChanged = applySidebarCollapsePrecedence({ invalidate: false });
+  if (collapseChanged) {
+    renderState.sidebarSignature = "";
+  }
+  renderState.gridSignature = "";
+  void render(store.getState());
+}
+
 async function bootstrap() {
   store.subscribe((snapshot) => {
     void render(snapshot);
   });
 
-  window.addEventListener("resize", () => {
-    renderState.gridSignature = "";
-    void render(store.getState());
-  });
+  applySidebarCollapsePrecedence({ invalidate: false });
+  syncSidebarLayoutContract();
+
+  window.addEventListener("resize", handleViewportStateChange);
+  document.addEventListener("fullscreenchange", handleViewportStateChange);
 
   window.addEventListener("beforeunload", handleBeforeUnload);
   renderRefreshProgress();
