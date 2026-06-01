@@ -4,16 +4,16 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 09
 current_phase_name: scalable-frontend-navigation-and-ux-architecture
-status: planning
-stopped_at: Phase 09 scope under review; execution paused before 09-01.
-last_updated: "2026-05-28T17:30:00-03:00"
-last_activity: 2026-05-28 -- Rolled back 09-01 implementation; preparing scope review before execution.
+status: executing
+stopped_at: Phase 09 rebaseline documentation regeneration completed.
+last_updated: "2026-06-01T18:56:13.167Z"
+last_activity: 2026-06-01
 progress:
   total_phases: 15
-  completed_phases: 13
+  completed_phases: 14
   total_plans: 56
-  completed_plans: 53
-  percent: 95
+  completed_plans: 56
+  percent: 100
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Users can quickly spot operational deviations and act on them without digging through decorative or low-signal UI.
-**Current focus:** Phase 09 - scalable-frontend-navigation-and-ux-architecture
+**Current focus:** Phase 09 — scalable-frontend-navigation-and-ux-architecture
 
 ## Current Position
 
 **Current Phase:** 09
 **Current Phase Name:** scalable-frontend-navigation-and-ux-architecture
-Phase: 09 (scalable-frontend-navigation-and-ux-architecture) - PLANNING
-Plan: 1 of 3 (next)
-Status: Scope review in progress; execution paused before 09-01
-Last activity: 2026-05-28 -- Rolled back 09-01 implementation; preparing scope review before execution
+Phase: 09 (scalable-frontend-navigation-and-ux-architecture) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 09
+Last activity: 2026-06-01
 
 Progress: [##########] 95%
 
@@ -44,7 +44,7 @@ Progress: [##########] 95%
 - Phase 08 human UAT is complete (`08-HUMAN-UAT.md`) with 4/4 pass and no remaining gaps.
 - Phase 08 verification is complete (`08-VERIFICATION.md`) with implementation and human validation closed.
 - Phase 01 verification is now closed based on confirmed browser-level behavior across later UAT cycles.
-- Phase 09 planning is already in place (09-01, 09-02, 09-03) and execution can proceed directly.
+- Phase 09 planning artifacts were regenerated around the approved rebaseline (full-width app header, docked left pane, separated tabs/controls rows).
 
 ### Blockers/Concerns
 
@@ -55,11 +55,12 @@ Progress: [##########] 95%
 ### Roadmap Evolution
 
 - Phase 9 added: Scalable Frontend Navigation and UX Architecture.
-- Phase 9 context locked from user decisions and initial plan set (09-01/09-02/09-03) created.
-- Phase 9 controls refined: browser-style tab row with `+`, top-right quick ranges, reload+frequency toggle behavior, settings gear consolidation, and icon-only chart controls.
+- Phase 9 context was rebaselined: app-level navigation moved to full-width header with `Charts` active and `Shape Agents` disabled placeholder.
+- Phase 9 left pane contract redefined: docked non-overlapping pane, resize bounds 320-440 (default 360), fullscreen force-open, `<1400` auto-collapse, and remembered state precedence.
+- Phase 9 controls contract redefined: tabs/controls row separation retained, grid lock changed to `1-col`/`2-col`, and metadata/System Info removed from visible scope.
 
 ## Session Continuity
 
-Last session: 2026-05-28
-Stopped at: Verification deep-dive completed and documentation synchronized.
-Resume file: None
+Last session: 2026-06-01
+Stopped at: Phase 09 rebaseline documentation regeneration completed.
+Resume file: .planning/phases/09-scalable-frontend-navigation-and-ux-architecture/09-CONTEXT.md
