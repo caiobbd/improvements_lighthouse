@@ -130,16 +130,33 @@
 
 .surface-top-row,
 .surface-control-row {
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .surface-top-row {
   background: color-mix(in srgb, var(--surface-2) 86%, #fff 14%);
+  align-items: flex-end;
+}
+
+.surface-top-row .tab-navigation {
+  width: 100%;
+  min-width: 0;
 }
 
 .surface-control-row {
   background: color-mix(in srgb, var(--surface-2) 72%, #fff 28%);
+  justify-content: flex-end;
+}
+
+.surface-control-row .page-controls {
+  width: 100%;
+  min-width: max-content;
 }
 
 .alarm-details-row {
