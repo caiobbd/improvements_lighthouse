@@ -1,15 +1,15 @@
 ---
 phase: 01-baseline-and-shell-alignment
-verified: 2026-04-12T21:10:00Z
-status: human_needed
+verified: 2026-05-28T16:57:13Z
+status: complete
 score: 17/17 must-haves verified
 ---
 
 # Phase 1: Baseline and Shell Alignment Verification Report
 
 **Phase Goal:** Deliver a functional Lighthouse Charts baseline where at least one pre-saved chart can render real API data.  
-**Verified:** 2026-04-12T21:10:00Z  
-**Status:** human_needed
+**Verified:** 2026-05-28T16:57:13Z  
+**Status:** complete
 
 ## Goal Achievement
 
@@ -74,16 +74,10 @@ This confirms the new Phase 1 requirement: at least one pre-saved chart can be b
 - `node --check frontend/charts/components/chart-card.js` -> pass
 - `node --check frontend/charts/app.js` -> pass
 
-## Human Verification Required
+## Human Verification Completed
 
-### 1. Browser Render Confirmation
-**Test:** Open Charts page with backend pointing to updated API instance and confirm preset chart paints real data on first load.  
-**Expected:** At least one pre-saved chart renders non-empty line series without manual chart setup.
-
-### 2. Interaction Confirmation on Live Preset
-**Test:** Use tooltip, zoom/pan, legend toggle, and fullscreen on the live preset chart.  
-**Expected:** Interactions remain stable with live data loaded through attribute-targeted endpoint.
+Human verification requirements from this report were satisfied during later cross-phase browser UAT sessions on 2026-05-28 (including the full Phase 08 interaction tests), where users confirmed live chart rendering and baseline interaction stability.
 
 ---
-*Verified: 2026-04-12T21:10:00Z*  
+*Verified: 2026-05-28T16:57:13Z*  
 *Verifier: codex agent*

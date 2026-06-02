@@ -1,8 +1,8 @@
-# Phase 9 Validation: Plan Readiness
+# Phase 9 Validation: Plan Readiness (Rebaselined)
 
-**Validated:** 2026-05-15  
-**Scope:** Planning-only readiness check for revised Phase 9 plans.  
-**Verdict:** PASS after plan-doc patch.
+**Validated:** 2026-06-01  
+**Scope:** Planning-only readiness check for rebaselined Phase 9 documents.  
+**Verdict:** PASS (docs internally consistent with new layout contract).
 
 ## Inputs Read
 
@@ -12,64 +12,59 @@
 - `09-02-PLAN.md`
 - `09-03-PLAN.md`
 - `.planning/ROADMAP.md`
-- `.planning/config.json`
-- `.codex/get-shit-done/references/gates.md`
+- `.planning/STATE.md`
+
+## Rebaseline Consistency Check
+
+| Removed from scope | Removed in docs |
+|---|---|
+| Left app-sidebar global navigation model | Yes |
+| Equipment-driven auto-collapse of app sidebar | Yes |
+| Hidden right-rail placeholder | Yes |
+| System Info requirement/entrypoint | Yes |
+| Grid lock `2-col`/`3-col` | Yes (now `1-col`/`2-col`) |
 
 ## Acceptance Gate Coverage
 
 | Gate item | Covering plan/task | Status |
 |---|---|---|
-| Browser-like isolated tabs row | 09-02 Task 1 | Covered |
-| `+` tab immediately after last tab creates page | 09-02 Task 1 | Covered |
-| Top-right quick ranges, reload, frequency toggle/dropdown, grid icons, gear | 09-02 Task 2 | Covered |
-| Gear menu contains exactly six locked labels | 09-02 Task 3 | Covered |
-| No legacy duplicated top controls visible | 09-02 Tasks 1 and 3 | Covered |
-| Chart header controls icon-only, `?` leftmost | 09-03 Task 1 | Covered |
-| `?` does not trigger `...` menu | 09-03 Task 1 | Covered |
-| `...` opens only from `...`; help/menu mutually exclusive | 09-03 Task 2 | Covered |
-| Plot drawing height unchanged while chrome is reduced | 09-03 Task 3 | Covered |
-| Primary app sidebar plus secondary equipment sidebar | 09-01 Tasks 1 and 2 | Covered |
-| Equipment expansion auto-collapses app sidebar | 09-01 Task 2 | Covered |
-| Metadata only through System Info | 09-01 Tasks 1 and 3 | Covered |
-| Hidden right-sidebar future slot, not visible by default | 09-01 Task 1 | Covered |
-| Lighthouse light palette/no dark header treatment | 09-01 Task 1 | Covered after patch |
-| Baseline reset from rejected experimental shell/header/sidebar treatment | 09-01 Task 1 | Covered after patch |
+| Full-width app header is only row above charts tabs | 09-01 Task 1 | Covered |
+| Header shows `Lighthouse 2.0`, active `Charts`, disabled `Shape Agents` tooltip-only | 09-01 Task 1 | Covered |
+| Legacy breadcrumbs/title/subtitle removed | 09-01 Task 1 | Covered |
+| Left pane docked and non-overlapping | 09-01 Task 2 | Covered |
+| Left pane resize bounds `320-440` with default `360` | 09-01 Task 2 | Covered |
+| Fullscreen force-open + `<1400` auto-collapse + remembered state | 09-01 Task 3 | Covered |
+| Slim icon rail in collapsed state | 09-01 Task 3 | Covered |
+| Single-active pane contexts (`Equipment/Sensors/Events`) | 09-01 Task 3 | Covered |
+| Tabs row separate from controls row | 09-02 Task 1 | Covered |
+| Quick ranges + reload/frequency behavior preserved | 09-02 Task 2 | Covered |
+| Grid modes locked to `1-col` and `2-col` | 09-02 Task 2 | Covered |
+| Settings menu exact six actions | 09-02 Task 3 | Covered |
+| Metadata hidden (`Environment`, `Backend Contract`, `System Info`) | 09-02 Task 3 | Covered |
+| Chart `?` does not open `...` | 09-03 Task 1 | Covered |
+| Help/menu overlays mutually exclusive | 09-03 Task 2 | Covered |
+| Compact chart chrome with stable chart-height strategy | 09-03 Task 3 | Covered |
 
-## Sequencing
+## Sequencing Validity
 
-| Plan | Wave | Depends on | Reason |
+| Plan | Wave | Depends on | Result |
 |---|---:|---|---|
-| 09-01 | 1 | none | Establishes shell/sidebar/metadata anchors first. |
-| 09-02 | 2 | 09-01 | Builds top controls against stable shell anchors. |
-| 09-03 | 3 | 09-02 | Fixes chart-card overlays and density, then runs final acceptance matrix. |
+| 09-01 | 1 | none | Valid |
+| 09-02 | 2 | 09-01 | Valid |
+| 09-03 | 3 | 09-02 | Valid |
 
-Dependency graph is valid and acyclic. Shared files are sequenced, not parallelized.
+Dependency chain is linear and consistent with behavior ownership boundaries.
 
-## Nyquist Compliance
+## Verification Command Coverage
 
-| Task | Plan | Wave | Automated command(s) | Status |
-|---|---|---:|---|---|
-| Establish explicit shell landmarks | 09-01 | 1 | `node --check frontend/charts/app.js` | PASS |
-| Split sidebar state | 09-01 | 1 | `node --check frontend/charts/app.js` | PASS |
-| Wire System Info | 09-01 | 1 | `node --check frontend/charts/app.js` | PASS |
-| Lock browser-tab row | 09-02 | 2 | `node --check frontend/charts/components/tab-navigation.js` | PASS |
-| Implement top-right controls | 09-02 | 2 | `node --check frontend/charts/components/page-controls.js`; `node --check frontend/charts/components/date-filter.js` | PASS |
-| Enforce gear exactness | 09-02 | 2 | `node --check frontend/charts/components/page-controls.js`; `powershell ... rg ...` | PASS |
-| Scope chart header interactions | 09-03 | 3 | `node --check frontend/charts/components/chart-card.js` | PASS |
-| Mutual exclusion overlays | 09-03 | 3 | `node --check frontend/charts/components/chart-card.js` | PASS |
-| Density and final gate | 09-03 | 3 | `node --check frontend/charts/components/chart-card.js`; `rg ... renderLineChart`; `python -m pytest tests/frontend` | PASS |
+| Plan | Core checks present |
+|---|---|
+| 09-01 | `node --check frontend/charts/app.js` + manual shell/pane matrix |
+| 09-02 | `node --check` for tabs/controls/date-filter + metadata grep guard |
+| 09-03 | `node --check` for chart-card + `python -m pytest tests/frontend` + integrated manual gate |
 
-Sampling: every implementation task has an automated check, plus manual checks for DOM layout and interaction behavior that syntax tests cannot prove.
+## Notes
 
-## Readiness Notes
-
-- Formal roadmap requirements for Phase 9 are still `TBD`; this validation uses `09-CONTEXT.md` locked decisions, corrections, and acceptance gate as the operative requirement source.
-- `CLAUDE.md`, `.claude/skills/`, and `.agents/skills/` were not present, so no project-specific skill or Claude directive conflicts were found.
-- No product/frontend code was edited during this validation.
-
-## Remaining Execution Watch Items
-
-- Visual review must verify that baseline reset removes rejected shell/header/sidebar treatment instead of preserving it behind new markup.
-- Gear-menu exactness is brittle by design: label case and extra entries should be treated as acceptance failures.
-- Chart overlay isolation must be checked with hover, focus, click, Escape, outside click, and rerender paths because the existing defect is event-boundary related.
-- Plot-height preservation requires visual comparison in addition to the `height: 300` string guard; chrome can shrink while the plot draw area remains constant.
+- Phase 9 roadmap requirements remain `TBD`; this validation treats the rebaselined `09-CONTEXT.md` as the operative source of truth.
+- Validation is planning-readiness only; implementation evidence will be required in future `*-SUMMARY.md` artifacts.
+- This document supersedes prior Phase 9 validation that referenced removed scope (right rail/System Info/left app-sidebar model).

@@ -11,3 +11,8 @@ Project dedicated to improvements and tracking of various feature engineering an
 - Click on chart area drops a pinned cursor (max 5 per page, session-only).
 - Pinned cursors can be dragged; dragging off left/right chart edge removes the pin.
 - Bottom 20% of chart plot area acts as a pan zone (`drag` equivalent to `Shift + Drag`).
+
+## Frontend Scroll Rule
+
+- UI interactions should preserve current scroll position by default.
+- Auto-scroll is only allowed for explicit navigation intent and should use non-disruptive placement (`block: nearest`), not reset-to-top behavior.

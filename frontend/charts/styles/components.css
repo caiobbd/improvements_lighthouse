@@ -1733,13 +1733,15 @@
 
 .charts-sidebars.collapsed .charts-sidebars-shell {
   grid-template-rows: auto;
+  align-content: start;
+  justify-items: stretch;
 }
 
 .charts-sidebars.collapsed .sidebars-toolbar {
-  justify-content: center;
-  padding: 10px 0;
-  border-bottom: 0;
-  background: transparent;
+  justify-content: flex-start;
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.45);
 }
 
 .sidebar-toggle-button {

@@ -1,8 +1,8 @@
-# Lighthouse Improvements - MVBAC Operations Frontend
+# Lighthouse Improvements - Operations Frontend
 
 ## What This Is
 
-This project evolves the Lighthouse experience for MVBAC with a charts-first, operations-focused workflow. The current product surface is the Charts workspace and its connected alarm/event analysis flows: API-backed plotting, selector-driven multi-asset composition, equipment/sensor navigation, and alarm-context investigation.
+This project evolves the Lighthouse experience with a charts-first, operations-focused workflow. The current product surface is the Charts workspace and its connected alarm/event analysis flows: API-backed plotting, selector-driven multi-asset composition, equipment/sensor navigation, and alarm-context investigation.
 
 ## Core Value
 

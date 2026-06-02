@@ -1,10 +1,11 @@
 const STORAGE_KEY = "lighthouse.charts.workspace.v1";
 const MAX_CHARTS_PER_PAGE = 30;
 const NEW_PAGE_PREFIX = "New Page";
-const DEFAULT_DATE_PRESET = "30d";
+const DEFAULT_DATE_PRESET = "4w";
 const DEFAULT_FREQUENCY_MODE = "auto";
 const DEFAULT_FREQUENCY_WINDOW = "6h";
 const DEFAULT_PAGE_TYPE = "standard";
+const DEFAULT_GRID_COLUMNS = 2;
 const MIN_GRID_COLUMNS = 1;
 const MAX_GRID_COLUMNS = 2;
 const ALWAYS_INCLUDED_TABLE_COLUMN_IDS = Object.freeze(["name", "color", "remove"]);
@@ -51,7 +52,7 @@ function normalizeTimestamp(value) {
 }
 
 function clampGridColumns(value) {
-  const parsed = Number(value || MAX_GRID_COLUMNS);
+  const parsed = Number(value ?? DEFAULT_GRID_COLUMNS);
   return Math.max(MIN_GRID_COLUMNS, Math.min(MAX_GRID_COLUMNS, parsed));
 }
 
@@ -394,7 +395,7 @@ function createPage(name, options = {}) {
     id: createId("page"),
     name,
     isPreset: Boolean(options.isPreset),
-    gridColumns: clampGridColumns(options.gridColumns || MAX_GRID_COLUMNS),
+    gridColumns: clampGridColumns(options.gridColumns ?? DEFAULT_GRID_COLUMNS),
     datePreset: options.datePreset || DEFAULT_DATE_PRESET,
     frequencyMode: normalizeFrequencyMode(options.frequencyMode || DEFAULT_FREQUENCY_MODE),
     frequencyWindow: normalizeFrequencyWindow(options.frequencyWindow || DEFAULT_FREQUENCY_WINDOW),
@@ -414,7 +415,7 @@ function normalizePage(page, index = 0, forcePreset = false) {
   const normalized = createPage(page?.name || `Page ${index + 1}`, {
     ...page,
     isPreset: forcePreset || Boolean(page?.isPreset || page?.is_preset),
-    gridColumns: clampGridColumns(page?.gridColumns || page?.grid_columns || MAX_GRID_COLUMNS),
+    gridColumns: clampGridColumns(page?.gridColumns ?? page?.grid_columns ?? DEFAULT_GRID_COLUMNS),
     datePreset: page?.datePreset || page?.date_preset || DEFAULT_DATE_PRESET,
     frequencyMode: normalizeFrequencyMode(page?.frequencyMode || page?.frequency_mode),
     frequencyWindow: normalizeFrequencyWindow(page?.frequencyWindow || page?.frequency_window),

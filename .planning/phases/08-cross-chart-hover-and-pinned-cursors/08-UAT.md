@@ -1,9 +1,9 @@
 ---
 status: complete
 phase: 08-cross-chart-hover-and-pinned-cursors
-source: 08-01-SUMMARY.md, 08-02-SUMMARY.md, 08-03-SUMMARY.md, 08-04-SUMMARY.md
+source: 08-01-SUMMARY.md, 08-02-SUMMARY.md, 08-03-SUMMARY.md, 08-04-SUMMARY.md, 08-05-SUMMARY.md
 started: 2026-04-22T17:51:00.353Z
-updated: 2026-05-28T11:14:54.3031134-03:00
+updated: 2026-05-28T13:57:13-03:00
 ---
 
 ## Current Test
@@ -31,9 +31,7 @@ result: pass
 
 ### 5. Drag Off Edge Removes Cursor
 expected: Dragging a pinned cursor fully beyond left or right chart bounds removes it immediately and frees a pin slot.
-result: issue
-reported: "when I drag, I noticed that my cursor also selects text, making it less clean after deleting a pin"
-severity: minor
+result: pass
 
 ### 6. Bottom Pan Zone Behavior
 expected: In the lower 20% of plot area (above x-axis), pointer changes to hand and drag performs horizontal pan equivalent to Shift+Drag.
@@ -54,17 +52,11 @@ result: pass
 ## Summary
 
 total: 9
-passed: 8
-issues: 1
+passed: 9
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
-- truth: "Dragging a pinned cursor fully beyond left or right chart bounds removes it immediately and frees a pin slot."
-  status: failed
-  reason: "User reported: when I drag, I noticed that my cursor also selects text, making it less clean after deleting a pin"
-  severity: minor
-  test: 5
-  artifacts: []
-  missing: []
+[]

@@ -1,4 +1,4 @@
-import { createChartCard } from "./chart-card.js";
+import { createChartCard } from "./chart-card.js?v=20260516-2";
 import { storeConstants } from "../state/store.js";
 
 const gridRuntimeByContainer = new WeakMap();
@@ -119,60 +119,64 @@ function createSyncBus() {
   };
 }
 
-function createAddChartBlock(onAdd, disabled = false) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "tab-panel-add-chart-wrapper";
-  const capValue = storeConstants.MAX_CHARTS_PER_PAGE;
-
-  const block = document.createElement("button");
-  block.type = "button";
-  block.className = "tab-panel-add-chart secondary-button";
-  block.textContent = "+ Add chart";
-  block.disabled = disabled;
-  block.title = disabled ? `Maximum ${capValue} charts per page.` : "Add chart";
-  block.addEventListener("click", onAdd);
-  wrapper.append(block);
-
-  if (disabled) {
-    const hint = document.createElement("p");
-    hint.className = "chart-limit-hint";
-    hint.textContent = `Chart limit reached (${capValue}).`;
-    wrapper.append(hint);
-  }
-
-  return wrapper;
-}
-
-function renderEmptyState(container, onAdd) {
+function renderEmptyState(container, page, actions) {
   const template = document.getElementById("empty-state-template");
   const fragment = template.content.cloneNode(true);
   const wrapper = document.createElement("div");
   wrapper.className = "chart-grid-empty-state";
   wrapper.dataset.role = "chart-grid-empty-state";
   wrapper.append(fragment);
-
-  const action = document.createElement("button");
-  action.type = "button";
-  action.className = "primary-button";
-  action.textContent = "Add first chart";
-  action.addEventListener("click", onAdd);
-
-  wrapper.querySelector(".empty-chart-state-container")?.append(action);
+  const iconNode = wrapper.querySelector(".empty-state-icon");
+  if (iconNode) {
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "empty-state-icon-button";
+    trigger.textContent = "+";
+    trigger.title = "Add chart";
+    trigger.setAttribute("aria-label", "Add chart");
+    trigger.addEventListener("click", () => {
+      actions.addChart(page.id);
+    });
+    iconNode.replaceWith(trigger);
+  }
   container.append(wrapper);
   return wrapper;
+}
+
+function buildAddChartTile(page, actions) {
+  const tile = document.createElement("button");
+  tile.type = "button";
+  tile.className = "chart-add-tile";
+  tile.dataset.role = "chart-add-tile";
+  tile.title = "Add chart";
+  tile.setAttribute("aria-label", "Add chart");
+  tile.innerHTML = `
+    <span class="chart-add-tile-plus" aria-hidden="true">+</span>
+    <span class="chart-add-tile-label">Add chart</span>
+  `;
+  tile.addEventListener("click", () => {
+    actions.addChart(page.id);
+  });
+  return tile;
+}
+
+function isElementOutOfViewport(element) {
+  if (!element) return false;
+  const rect = element.getBoundingClientRect();
+  const viewportHeight = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+  return rect.bottom > viewportHeight || rect.top < 0;
 }
 
 function getRuntime(container) {
   let runtime = gridRuntimeByContainer.get(container);
   if (runtime) return runtime;
-  runtime = {
-    activePageId: null,
-    columns: null,
-    syncBus: createSyncBus(),
-    chartEntries: new Map(),
-    addChartBlock: null,
-    emptyStateNode: null,
-  };
+    runtime = {
+      activePageId: null,
+      columns: null,
+      syncBus: createSyncBus(),
+      chartEntries: new Map(),
+      emptyStateNode: null,
+    };
   gridRuntimeByContainer.set(container, runtime);
   return runtime;
 }
@@ -191,8 +195,6 @@ export async function renderChartGrid(container, snapshot, actions) {
   if (runtime.activePageId !== page.id) {
     runtime.chartEntries.forEach((entry) => destroyEntry(entry));
     runtime.chartEntries.clear();
-    runtime.addChartBlock?.remove?.();
-    runtime.addChartBlock = null;
     runtime.emptyStateNode?.remove?.();
     runtime.emptyStateNode = null;
     runtime.columns = null;
@@ -209,12 +211,10 @@ export async function renderChartGrid(container, snapshot, actions) {
   if (page.charts.length === 0) {
     runtime.chartEntries.forEach((entry) => destroyEntry(entry));
     runtime.chartEntries.clear();
-    runtime.addChartBlock?.remove?.();
-    runtime.addChartBlock = null;
     runtime.emptyStateNode?.remove?.();
     runtime.emptyStateNode = null;
     container.innerHTML = "";
-    runtime.emptyStateNode = renderEmptyState(container, () => actions.addChart(page.id));
+    runtime.emptyStateNode = renderEmptyState(container, page, actions);
     return;
   }
 
@@ -262,10 +262,11 @@ export async function renderChartGrid(container, snapshot, actions) {
     }
   });
 
-  const isAtLimit = page.charts.length >= storeConstants.MAX_CHARTS_PER_PAGE;
-  runtime.addChartBlock?.remove?.();
-  runtime.addChartBlock = createAddChartBlock(() => actions.addChart(page.id), isAtLimit);
-  container.append(runtime.addChartBlock);
+  const canAddMoreCharts = page.charts.length < storeConstants.MAX_CHARTS_PER_PAGE;
+  container.querySelectorAll('[data-role="chart-add-tile"]').forEach((node) => node.remove());
+  if (canAddMoreCharts) {
+    container.append(buildAddChartTile(page, actions));
+  }
 
   if (columnsChanged) {
     requestAnimationFrame(() => {
@@ -276,12 +277,14 @@ export async function renderChartGrid(container, snapshot, actions) {
   }
 
   if (page.pendingScrollChartId && nodeByChartId.has(page.pendingScrollChartId)) {
-    const target = nodeByChartId.get(page.pendingScrollChartId);
-    requestAnimationFrame(() => {
-      target.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
-    });
+    const targetId = page.pendingScrollChartId;
+    const target = nodeByChartId.get(targetId);
     if (typeof actions.consumePendingChartScroll === "function") {
-      actions.consumePendingChartScroll(page.id, page.pendingScrollChartId);
+      actions.consumePendingChartScroll(page.id, targetId);
     }
+    requestAnimationFrame(() => {
+      if (!target || !target.isConnected || !isElementOutOfViewport(target)) return;
+      target.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    });
   }
 }
