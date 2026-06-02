@@ -1,7 +1,9 @@
 .charts-page-container {
   --charts-sidebar-width: 360px;
   --charts-sidebar-collapsed-width: 56px;
-  min-height: 100vh;
+  box-sizing: border-box;
+  height: 100dvh;
+  min-height: 100dvh;
   width: 100%;
   padding: var(--space-4);
   display: grid;
@@ -101,6 +103,7 @@
   position: relative;
   display: block;
   gap: 0;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   border: 1px solid var(--border-soft);
@@ -112,7 +115,11 @@
 
 .charts-workspace-main {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   display: block;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .charts-kpi-strip {
@@ -124,7 +131,7 @@
 .charts-surface {
   background: linear-gradient(180deg, var(--surface-2), var(--surface-3));
   display: block;
-  min-height: 0;
+  min-height: 100%;
   overflow: hidden;
 }
 

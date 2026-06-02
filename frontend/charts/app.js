@@ -95,7 +95,8 @@ const sidebarState = {
   preloadedEvents: false,
   notice: "",
   equipmentScrollTop: 0,
-  detailScrollTop: 0,
+  sensorsScrollTop: 0,
+  eventsScrollTop: 0,
 };
 
 let contextMenuCleanup = null;
@@ -104,18 +105,16 @@ const alarmNarrativeExpandedByPage = new Map();
 
 function captureSidebarScrollSnapshot() {
   if (!sidebarsRoot) return;
-  const equipmentHost = sidebarsRoot.querySelector(".equipment-tree.sidebar-scroll");
-  const detailHost = sidebarsRoot.querySelector(".sensor-groups.sidebar-scroll");
-  if (equipmentHost) {
-    sidebarState.equipmentScrollTop = equipmentHost.scrollTop;
-  }
-  if (detailHost) {
-    sidebarState.detailScrollTop = detailHost.scrollTop;
-  }
+  sidebarsRoot.querySelectorAll("[data-sidebar-scroll-key]").forEach((host) => {
+    const key = host.dataset.sidebarScrollKey;
+    if (!key) return;
+    sidebarState[key] = host.scrollTop;
+  });
 }
 
 function bindSidebarScrollPersistence(host, key) {
   if (!host) return;
+  host.dataset.sidebarScrollKey = key;
   host.addEventListener(
     "scroll",
     () => {
@@ -133,6 +132,12 @@ function restoreSidebarScroll(host, key) {
     if (!host.isConnected) return;
     host.scrollTop = target;
   });
+}
+
+function isSidebarContextLoading(contextId) {
+  if (contextId === SIDEBAR_CONTEXT_SENSORS) return sidebarState.loadingSensors;
+  if (contextId === SIDEBAR_CONTEXT_EVENTS) return sidebarState.loadingEvents;
+  return sidebarState.loadingEquipment;
 }
 
 function toTagKey(tag) {
@@ -1023,9 +1028,11 @@ async function preloadIntelEvents() {
 }
 
 async function loadIntelEventsForSelectedEquipment(options = {}) {
-  const selectedNode = sidebarState.selectedEquipmentId
-    ? sidebarState.nodeById.get(sidebarState.selectedEquipmentId)
-    : null;
+  const selectedNode = options.targetNode
+    ? sidebarState.nodeById.get(String(options.targetNode.id)) || options.targetNode
+    : sidebarState.selectedEquipmentId
+      ? sidebarState.nodeById.get(sidebarState.selectedEquipmentId)
+      : null;
   if (!selectedNode) {
     sidebarState.eventsList = [];
     sidebarState.eventStatusOptions = [];
@@ -1035,6 +1042,7 @@ async function loadIntelEventsForSelectedEquipment(options = {}) {
   }
 
   const forceReload = Boolean(options.forceReload);
+  const requestedEquipmentId = String(selectedNode.id || "").trim();
   if (!forceReload && sidebarState.eventsList.length > 0 && !sidebarState.eventsError) {
     return;
   }
@@ -1055,13 +1063,16 @@ async function loadIntelEventsForSelectedEquipment(options = {}) {
     const normalizedEvents = (Array.isArray(payload?.events) ? payload.events : [])
       .map(normalizeEventCard)
       .filter(Boolean);
+    if (sidebarState.selectedEquipmentId !== requestedEquipmentId) return;
     sidebarState.eventsList = normalizedEvents;
     sidebarState.eventStatusOptions = uniqueStrings(payload?.status_options || payload?.statusOptions);
   } catch (error) {
+    if (sidebarState.selectedEquipmentId !== requestedEquipmentId) return;
     sidebarState.eventsError = error?.message || "Unable to load Intel events for equipment.";
     sidebarState.eventsList = [];
     sidebarState.eventStatusOptions = [];
   } finally {
+    if (sidebarState.selectedEquipmentId !== requestedEquipmentId) return;
     sidebarState.loadingEvents = false;
     invalidateSidebarRender();
   }
@@ -1109,22 +1120,31 @@ async function selectEquipmentNode(node, options = {}) {
     return;
   }
 
-  sidebarState.selectedEquipmentId = node.id;
+  const requestedEquipmentId = String(node.id);
+  sidebarState.selectedEquipmentId = requestedEquipmentId;
   sidebarState.loadingSensors = true;
   sidebarState.sensorsError = "";
   sidebarState.sensorCategories = [];
   sidebarState.sensorList = [];
   sidebarState.unitMetadataReadyByEquipmentId.set(node.id, false);
+  sidebarState.sensorsScrollTop = 0;
   sidebarState.eventsError = "";
   sidebarState.eventsList = [];
   sidebarState.eventStatusOptions = [];
   sidebarState.eventStatusFilter = "";
+  sidebarState.eventsScrollTop = 0;
   invalidateSidebarRender();
+
+  const eventsPromise = loadIntelEventsForSelectedEquipment({
+    forceReload: true,
+    targetNode: node,
+  });
 
   try {
     const payload = await getEquipmentSensors({ item_id: node.id, asset_name: node.name });
     const normalized = normalizeSensorCategories(payload);
     await finalizeUnitMetadataForEquipment(node, normalized);
+    if (sidebarState.selectedEquipmentId !== requestedEquipmentId) return;
     sidebarState.sensorCategories = normalized.categories;
     sidebarState.sensorList = normalized.allSensors;
     sidebarState.unitMetadataReadyByEquipmentId.set(node.id, normalized.unitMetadataReady);
@@ -1132,18 +1152,18 @@ async function selectEquipmentNode(node, options = {}) {
       normalized.categories.map((entry) => entry.category),
     );
   } catch (error) {
+    if (sidebarState.selectedEquipmentId !== requestedEquipmentId) return;
     sidebarState.sensorsError = error?.message || "Unable to load sensors for equipment.";
     sidebarState.sensorCategories = [];
     sidebarState.sensorList = [];
     sidebarState.unitMetadataReadyByEquipmentId.set(node.id, false);
   } finally {
+    if (sidebarState.selectedEquipmentId !== requestedEquipmentId) return;
     sidebarState.loadingSensors = false;
     invalidateSidebarRender();
   }
 
-  if (sidebarState.activeContext === SIDEBAR_CONTEXT_EVENTS) {
-    await loadIntelEventsForSelectedEquipment({ forceReload: true });
-  }
+  void eventsPromise;
 }
 
 function addChartsWithCap(chartEntries) {
@@ -2064,15 +2084,18 @@ function renderSidebars(snapshot) {
 
   const toggle = document.createElement("button");
   toggle.type = "button";
-  toggle.className = "secondary-button";
-  toggle.textContent = sidebarState.collapsed ? "Open" : "Collapse";
+  toggle.className = "sidebar-toggle-button";
   toggle.title = sidebarState.collapsed ? "Open navigation pane" : "Collapse navigation pane";
+  toggle.setAttribute("aria-label", sidebarState.collapsed ? "Open navigation pane" : "Collapse navigation pane");
+  toggle.innerHTML = `<span class="sidebar-toggle-chevron${
+    sidebarState.collapsed ? " is-collapsed" : ""
+  }" aria-hidden="true"></span>`;
   toggle.addEventListener("click", () => {
     toggleSidebarCollapse();
   });
   toolbar.append(toggle);
 
-  if (sidebarState.notice) {
+  if (!sidebarState.collapsed && sidebarState.notice) {
     const notice = document.createElement("span");
     notice.className = "sidebars-notice";
     notice.textContent = sidebarState.notice;
@@ -2100,23 +2123,7 @@ function renderSidebars(snapshot) {
   ];
 
   if (sidebarState.collapsed) {
-    const rail = document.createElement("div");
-    rail.className = "sidebar-collapsed-rail";
-    contextOptions.forEach((option) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = `sidebar-rail-button${
-        sidebarState.activeContext === option.id ? " is-active" : ""
-      }`;
-      button.title = option.label;
-      button.setAttribute("aria-label", option.label);
-      button.textContent = option.shortLabel;
-      button.addEventListener("click", () => {
-        setSidebarContext(option.id, { expandSidebar: true });
-      });
-      rail.append(button);
-    });
-    shell.append(rail);
+    sidebarsRoot.append(shell);
   } else {
     const tabs = document.createElement("div");
     tabs.className = "sidebar-context-tabs";
@@ -2126,9 +2133,14 @@ function renderSidebars(snapshot) {
       const tab = document.createElement("button");
       tab.type = "button";
       tab.role = "tab";
-      tab.className = `sidebar-context-tab${sidebarState.activeContext === option.id ? " is-active" : ""}`;
+      tab.className = `sidebar-context-tab${sidebarState.activeContext === option.id ? " is-active" : ""}${
+        isSidebarContextLoading(option.id) ? " is-loading" : ""
+      }`;
       tab.setAttribute("aria-selected", sidebarState.activeContext === option.id ? "true" : "false");
-      tab.textContent = option.label;
+      if (isSidebarContextLoading(option.id)) {
+        tab.setAttribute("aria-busy", "true");
+      }
+      tab.innerHTML = `<span>${option.label}</span>`;
       tab.addEventListener("click", () => {
         setSidebarContext(option.id);
       });
@@ -2195,9 +2207,9 @@ function renderSidebars(snapshot) {
       <div class="sidebar-scroll sensor-groups"></div>
       `;
       const sensorGroupsHost = sensorsPane.querySelector(".sensor-groups");
-      bindSidebarScrollPersistence(sensorGroupsHost, "detailScrollTop");
+      bindSidebarScrollPersistence(sensorGroupsHost, "sensorsScrollTop");
       renderSensorSidebar(sensorGroupsHost, snapshot);
-      restoreSidebarScroll(sensorGroupsHost, "detailScrollTop");
+      restoreSidebarScroll(sensorGroupsHost, "sensorsScrollTop");
       panelHost.append(sensorsPane);
     } else {
       const eventsPane = document.createElement("section");
@@ -2215,16 +2227,15 @@ function renderSidebars(snapshot) {
       <div class="sidebar-scroll sensor-groups"></div>
       `;
       const eventsHost = eventsPane.querySelector(".sensor-groups");
-      bindSidebarScrollPersistence(eventsHost, "detailScrollTop");
+      bindSidebarScrollPersistence(eventsHost, "eventsScrollTop");
       renderEventsSidebar(eventsHost);
-      restoreSidebarScroll(eventsHost, "detailScrollTop");
+      restoreSidebarScroll(eventsHost, "eventsScrollTop");
       panelHost.append(eventsPane);
     }
 
     shell.append(panelHost);
+    sidebarsRoot.append(shell);
   }
-
-  sidebarsRoot.append(shell);
   if (!sidebarState.collapsed) {
     const resizeHandle = document.createElement("button");
     resizeHandle.type = "button";
